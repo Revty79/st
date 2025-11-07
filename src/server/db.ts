@@ -172,3 +172,113 @@ CREATE TABLE IF NOT EXISTS special_ability_requirements (
   saved_at         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 `);
+
+// --- INVENTORY TABLES: items, weapons, armors --------------------------------
+db.exec(`
+-- =========================
+-- items (general)
+-- =========================
+CREATE TABLE IF NOT EXISTS items (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_by_id    TEXT NULL REFERENCES users(id) ON DELETE SET NULL,
+  created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+
+  name             TEXT NOT NULL UNIQUE,
+  timeline_tag     TEXT NULL,
+  cost_credits     INTEGER NULL,
+  category         TEXT NULL,
+  subtype          TEXT NULL,
+  genre_tags       TEXT NULL,
+  mechanical_effect TEXT NULL,
+  weight           REAL NULL,
+  narrative_notes  TEXT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_items_name          ON items(name);
+CREATE INDEX IF NOT EXISTS idx_items_category      ON items(category);
+CREATE INDEX IF NOT EXISTS idx_items_created_by    ON items(created_by_id);
+
+CREATE TRIGGER IF NOT EXISTS trg_items_updated_at
+AFTER UPDATE ON items
+FOR EACH ROW
+BEGIN
+  UPDATE items SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = NEW.id;
+END;
+
+-- =========================
+-- weapons
+-- =========================
+CREATE TABLE IF NOT EXISTS weapons (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_by_id    TEXT NULL REFERENCES users(id) ON DELETE SET NULL,
+  created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+
+  name             TEXT NOT NULL UNIQUE,
+  timeline_tag     TEXT NULL,
+  cost_credits     INTEGER NULL,
+
+  category         TEXT NULL,
+  handedness       TEXT NULL,
+  dtype            TEXT NULL,
+  range_type       TEXT NULL,
+  range_text       TEXT NULL,
+  genre_tags       TEXT NULL,
+
+  weight           REAL NULL,
+  damage           INTEGER NULL,
+  effect           TEXT NULL,
+  narrative_notes  TEXT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_weapons_name        ON weapons(name);
+CREATE INDEX IF NOT EXISTS idx_weapons_category    ON weapons(category);
+CREATE INDEX IF NOT EXISTS idx_weapons_handed      ON weapons(handedness);
+CREATE INDEX IF NOT EXISTS idx_weapons_dtype       ON weapons(dtype);
+CREATE INDEX IF NOT EXISTS idx_weapons_created_by  ON weapons(created_by_id);
+
+CREATE TRIGGER IF NOT EXISTS trg_weapons_updated_at
+AFTER UPDATE ON weapons
+FOR EACH ROW
+BEGIN
+  UPDATE weapons SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = NEW.id;
+END;
+
+-- =========================
+-- armors
+-- =========================
+CREATE TABLE IF NOT EXISTS armors (
+  id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_by_id         TEXT NULL REFERENCES users(id) ON DELETE SET NULL,
+  created_at            TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at            TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+
+  name                  TEXT NOT NULL UNIQUE,
+  timeline_tag          TEXT NULL,
+  cost_credits          INTEGER NULL,
+
+  area_covered          TEXT NULL,
+  soak                  INTEGER NULL,
+  category              TEXT NULL,
+  atype                 TEXT NULL,
+  genre_tags            TEXT NULL,
+
+  weight                REAL NULL,
+  encumbrance_penalty   INTEGER NULL,
+  effect                TEXT NULL,
+  narrative_notes       TEXT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_armors_name         ON armors(name);
+CREATE INDEX IF NOT EXISTS idx_armors_category     ON armors(category);
+CREATE INDEX IF NOT EXISTS idx_armors_atype        ON armors(atype);
+CREATE INDEX IF NOT EXISTS idx_armors_created_by   ON armors(created_by_id);
+
+CREATE TRIGGER IF NOT EXISTS trg_armors_updated_at
+AFTER UPDATE ON armors
+FOR EACH ROW
+BEGIN
+  UPDATE armors SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = NEW.id;
+END;
+`);

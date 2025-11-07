@@ -282,3 +282,66 @@ BEGIN
   UPDATE armors SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = NEW.id;
 END;
 `);
+
+// --- CREATURES --------------------------------------------------------------
+db.exec(`
+CREATE TABLE IF NOT EXISTS creatures (
+  id                          INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_by_id               TEXT NULL REFERENCES users(id) ON DELETE SET NULL,
+  created_at                  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at                  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+
+  -- Core identity
+  name                        TEXT NOT NULL UNIQUE,
+  alt_names                   TEXT NULL,
+  challenge_rating            TEXT NULL,
+  encounter_scale             TEXT NULL,
+  type                        TEXT NULL,
+  role                        TEXT NULL,
+  genre_tags                  TEXT NULL,
+  description_short           TEXT NULL,
+
+  -- Stats
+  size                        TEXT NULL,
+  strength                    INTEGER NULL,
+  dexterity                   INTEGER NULL,
+  constitution                INTEGER NULL,
+  intelligence                INTEGER NULL,
+  wisdom                      INTEGER NULL,
+  charisma                    INTEGER NULL,
+
+  hp_total                    INTEGER NULL,
+  hp_by_location              TEXT NULL,
+  initiative                  INTEGER NULL,
+  armor_soak                  TEXT NULL,
+
+  -- Combat
+  attack_modes                TEXT NULL,
+  damage                      TEXT NULL,
+  range_text                  TEXT NULL,
+
+  -- Abilities & behavior
+  special_abilities           TEXT NULL,
+  magic_resonance_interaction TEXT NULL,
+  behavior_tactics            TEXT NULL,
+  habitat                     TEXT NULL,
+  diet                        TEXT NULL,
+  variants                    TEXT NULL,
+  loot_harvest                TEXT NULL,
+  story_hooks                 TEXT NULL,
+  notes                       TEXT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_creatures_name          ON creatures(name);
+CREATE INDEX IF NOT EXISTS idx_creatures_type          ON creatures(type);
+CREATE INDEX IF NOT EXISTS idx_creatures_role          ON creatures(role);
+CREATE INDEX IF NOT EXISTS idx_creatures_size          ON creatures(size);
+CREATE INDEX IF NOT EXISTS idx_creatures_created_by    ON creatures(created_by_id);
+
+CREATE TRIGGER IF NOT EXISTS trg_creatures_updated_at
+AFTER UPDATE ON creatures
+FOR EACH ROW
+BEGIN
+  UPDATE creatures SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = NEW.id;
+END;
+`);

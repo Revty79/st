@@ -336,7 +336,7 @@ export default function Page() {
 
       {/* header */}
       <header className="max-w-7xl mx-auto mb-6">
-        <h1 className="font-display text-4xl md:text-5xl tracking-tight">
+        <h1 className="font-evanescent st-title-gradient text-4xl sm:text-5xl tracking-tight">
           <span className="bg-[linear-gradient(90deg,#a78bfa_0%,#fbbf24_50%,#a78bfa_100%)] bg-clip-text text-transparent drop-shadow">
             Create Inventories
           </span>

@@ -1,26 +1,83 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* === Serrian Tide — Global Background (nebula + alchemy) === */
+:root{
+  --st-deep:#06080f;                 /* base */
+  --st-top:#0a0f1e;                  /* top fade */
+  --st-tint: rgba(3, 6, 14, 0.55);   /* darken layer over nebula */
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+html, body { height: 100%; }
+html { background-color: var(--st-deep); }
+
+body{
+  color: rgb(226 232 240); /* slate-200 */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  position: relative; /* create a stacking context for ::before */
+
+  /* Background layers (top ➜ bottom): tint → nebula → base */
+  background-image:
+    linear-gradient(var(--st-tint), var(--st-tint)),
+    url("/nebula.png"),
+    linear-gradient(to bottom, var(--st-top), var(--st-deep));
+  background-repeat: no-repeat, no-repeat, no-repeat;
+  background-position: center center, center center, center center;
+  background-size: cover, cover, cover;
+  background-attachment: fixed, fixed, fixed; /* gentle parallax */
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Spinning alchemy sigil as an overlay element */
+body::before{
+  content: "";
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: clamp(640px, 84vmin, 1340px);
+  height: clamp(640px, 84vmin, 1340px);
+  transform: translate(-50%, -50%);
+  background: url("/alchemy.png") center/contain no-repeat;
+  opacity: 0.28;                 /* tweak brightness here */
+  pointer-events: none;          /* ignore clicks */
+  animation: st-spin 120s linear infinite;
+  will-change: transform;
+  /* keep it above the background but below content; default z-index works
+     because body is the stacking context and ::before comes before content */
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@keyframes st-spin {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to   { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* subtle selection highlight */
+::selection{
+  background: rgba(251,191,36,0.22); /* amber */
+  color:#fff;
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce){
+  body { background-attachment: scroll, scroll, scroll; }
+  body::before { animation: none; }
+}
+
+/* === Evanescent display font ===
+   NOTE: browsers expect .ttf/.otf. If your file is evanescent.tff, rename to evanescent.ttf. */
+@font-face{
+  font-family: "Evanescent";
+  src: url("/evanescent.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+.font-evanescent { font-family: "Evanescent", ui-serif, Georgia, "Times New Roman", serif; }
+
+/* Title gradient: purple ends, gold center */
+.st-title-gradient{
+  background: linear-gradient(90deg, #a855f7 0%, #fbbf24 50%, #a855f7 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }

@@ -12,7 +12,7 @@ export default function WorldBuilderCard({
       <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-violet-400/20">
         <div className="h-3 w-3 rounded-full bg-violet-300" />
       </div>
-      <h3 className="font-semibold text-lg text-zinc-100">World Builder</h3>
+      <h3 className="st-card-title-gradient font-portcullion st-card-title-sm">Worldsmith Forge</h3>
       <p className="mt-1 text-sm text-zinc-300/90">
         Craft worlds, eras, settings, and campaigns.
       </p>

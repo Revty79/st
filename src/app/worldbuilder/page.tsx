@@ -50,7 +50,7 @@ export default async function WorldbuilderDashboard() {
             <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-violet-500/20">
               <div className="h-3 w-3 rounded-full bg-violet-300" />
             </div>
-            <h3 className="font-semibold text-lg text-zinc-100">Create Worlds</h3>
+            <h3 className="st-card-title-gradient font-portcullion st-card-title-sm">Create Worlds</h3>
             <p className="mt-1 text-sm text-zinc-300/90">Define timelines, regions, and lore pillars.</p>
             <div className="mt-4">
               <Link href="/worldbuilder/worlds" className="btn btn-gold w-full">
@@ -64,7 +64,7 @@ export default async function WorldbuilderDashboard() {
             <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-400/20">
               <div className="h-3 w-3 rounded-full bg-emerald-300" />
             </div>
-            <h3 className="font-semibold text-lg text-zinc-100">Create Races</h3>
+            <h3 className="st-card-title-gradient font-portcullion st-card-title-sm">Create Races</h3>
             <p className="mt-1 text-sm text-zinc-300/90">Lineages, traits, affinities, and lore ties.</p>
             <div className="mt-4">
               <Link href="/worldbuilder/races" className="btn btn-gold w-full">
@@ -78,7 +78,7 @@ export default async function WorldbuilderDashboard() {
             <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-blue-400/20">
               <div className="h-3 w-3 rounded-full bg-blue-300" />
             </div>
-            <h3 className="font-semibold text-lg text-zinc-100">Create Creatures</h3>
+            <h3 className="st-card-title-gradient font-portcullion st-card-title-sm">Create Creatures</h3>
             <p className="mt-1 text-sm text-zinc-300/90">Bestiary entries, behaviors, and stat blocks.</p>
             <div className="mt-4">
               <Link href="/worldbuilder/creatures" className="btn btn-gold w-full">
@@ -92,7 +92,7 @@ export default async function WorldbuilderDashboard() {
             <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-amber-400/20">
               <div className="h-3 w-3 rounded-full bg-amber-300" />
             </div>
-            <h3 className="font-semibold text-lg text-zinc-100">Create Inventories</h3>
+            <h3 className="st-card-title-gradient font-portcullion st-card-title-sm">Create Inventories</h3>
             <p className="mt-1 text-sm text-zinc-300/90">Items, gear sets, crafting, and drops.</p>
             <div className="mt-4">
               <Link href="/worldbuilder/inventory" className="btn btn-gold w-full">
@@ -106,7 +106,7 @@ export default async function WorldbuilderDashboard() {
             <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-indigo-400/20">
               <div className="h-3 w-3 rounded-full bg-indigo-300" />
             </div>
-            <h3 className="font-semibold text-lg text-zinc-100">Create Skill Sets</h3>
+            <h3 className="st-card-title-gradient font-portcullion st-card-title-sm">Create Skill Sets</h3>
             <p className="mt-1 text-sm text-zinc-300/90">Define grouped skills for races, classes, and modules.</p>
             <div className="mt-4">
               <Link href="/worldbuilder/skillsets" className="btn btn-gold w-full">

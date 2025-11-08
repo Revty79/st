@@ -1,6 +1,7 @@
 {
-  "name": "st",
+  "name": "serrian-tide",
   "version": "0.1.0",
+  "description": "A comprehensive digital toolkit for tabletop RPG world-building, character creation, and campaign management",
   "private": true,
   "scripts": {
     "dev": "next dev",

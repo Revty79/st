@@ -641,24 +641,24 @@ PRAGMA foreign_keys = ON;
 BEGIN;
 
 -- =========================================================
--- world_details (1:1 with worlds)
+-- world_details (1:1 with worlds) - UPDATED FOR NEW OUTLINE
 -- =========================================================
 CREATE TABLE IF NOT EXISTS world_details (
   id                      INTEGER PRIMARY KEY AUTOINCREMENT,
   world_id                INTEGER NOT NULL UNIQUE REFERENCES worlds(id) ON DELETE CASCADE,
 
-  -- Basic info
-  pitch                   TEXT NULL,
+  -- Basic info (Player-Facing)
+  pitch                   TEXT NULL,           -- Short Pitch (≤200 chars)
 
-  -- Astral bodies
+  -- Astral bodies (Player summary; G.O.D details)
   suns_count              INTEGER NOT NULL DEFAULT 1 CHECK (suns_count BETWEEN 0 AND 5),
 
-  -- Time & calendar
+  -- Time & calendar (Player-Facing)
   day_hours               REAL    NULL CHECK (day_hours IS NULL OR (day_hours >= 1 AND day_hours <= 100)),
   year_days               INTEGER NULL CHECK (year_days IS NULL OR (year_days >= 30 AND year_days <= 1000)),
   leap_rule               TEXT NULL,
 
-  -- Planet profile
+  -- Planet profile (Player summary; details collapsed)
   planet_type             TEXT NOT NULL DEFAULT 'Terrestrial'
                           CHECK (planet_type IN ('Terrestrial','Oceanic','Tidally Locked','Ringworld','Custom')),
   planet_type_note        TEXT NULL,           -- only used when planet_type = 'Custom'
@@ -668,17 +668,24 @@ CREATE TABLE IF NOT EXISTS world_details (
   tectonics               TEXT NOT NULL DEFAULT 'Medium'
                           CHECK (tectonics IN ('None','Low','Medium','High')),
 
-  -- Magic model
+  -- Magic model (Global Rules) - Player summary + G.O.D rules
   source_statement        TEXT NULL,           -- ≤240 in UI; DB allows longer
   corruption_level        TEXT NOT NULL DEFAULT 'Moderate'
                           CHECK (corruption_level IN ('None','Mild','Moderate','Severe','Custom')),
   corruption_note         TEXT NULL,           -- only used when corruption_level = 'Custom'
+  magic_rarity            TEXT NOT NULL DEFAULT 'Uncommon'
+                          CHECK (magic_rarity IN ('Commonplace','Uncommon','Rare','Legendary')),
 
-  -- Tech window
+  -- Technology window (Global Bounds) - Player-Facing
   tech_from               TEXT NOT NULL DEFAULT 'Iron'
                           CHECK (tech_from IN ('Stone','Bronze','Iron','Medieval','Renaissance','Industrial','Diesel','Atomic','Digital','Cyber','Interstellar')),
   tech_to                 TEXT NOT NULL DEFAULT 'Industrial'
                           CHECK (tech_to   IN ('Stone','Bronze','Iron','Medieval','Renaissance','Industrial','Diesel','Atomic','Digital','Cyber','Interstellar')),
+
+  -- Cosmology & Realms - interaction rules
+  realm_travel_allowed    INTEGER NOT NULL DEFAULT 1 CHECK (realm_travel_allowed IN (0,1)),
+  realm_cycles            TEXT NULL,           -- description of cycles
+  realm_costs             TEXT NULL,           -- description of costs
 
   -- Player-safe export toggle
   player_safe_summary_on  INTEGER NOT NULL DEFAULT 1 CHECK (player_safe_summary_on IN (0,1)),
@@ -803,7 +810,7 @@ CREATE TABLE IF NOT EXISTS world_bans (
 CREATE INDEX IF NOT EXISTS idx_world_bans_world ON world_bans(world_id);
 
 -- =========================================================
--- Tone flags (checkboxed)
+-- Tone flags (checkboxed) - UPDATED
 -- =========================================================
 CREATE TABLE IF NOT EXISTS world_tone_flags (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -876,6 +883,407 @@ CREATE TABLE IF NOT EXISTS world_factions (
   UNIQUE(world_id, value)
 );
 CREATE INDEX IF NOT EXISTS idx_world_factions_world ON world_factions(world_id);
+
+-- =========================================================
+-- NEW TABLES FOR EXTENDED WORLD OUTLINE
+-- =========================================================
+
+-- Geography Foundation
+CREATE TABLE IF NOT EXISTS world_continents (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id   INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  name       TEXT NOT NULL,
+  description TEXT NULL,
+  UNIQUE(world_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_world_continents_world ON world_continents(world_id);
+
+CREATE TABLE IF NOT EXISTS world_geographical_features (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id   INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  name       TEXT NOT NULL,
+  type       TEXT NOT NULL,       -- mountain range, sea, river, etc.
+  description TEXT NULL,
+  UNIQUE(world_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_world_geo_features_world ON world_geographical_features(world_id);
+
+CREATE TABLE IF NOT EXISTS world_climate_zones (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id   INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  name       TEXT NOT NULL,
+  description TEXT NULL,
+  UNIQUE(world_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_world_climate_zones_world ON world_climate_zones(world_id);
+
+CREATE TABLE IF NOT EXISTS world_natural_resources (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id   INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  name       TEXT NOT NULL,
+  rarity     TEXT NULL,
+  description TEXT NULL,
+  UNIQUE(world_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_world_resources_world ON world_natural_resources(world_id);
+
+-- Magic Model Extensions
+CREATE TABLE IF NOT EXISTS world_magical_materials (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id   INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  name       TEXT NOT NULL,
+  type       TEXT NULL,           -- component, focus, rare metal
+  description TEXT NULL,
+  UNIQUE(world_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_world_magic_materials_world ON world_magical_materials(world_id);
+
+CREATE TABLE IF NOT EXISTS world_planar_connections (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id   INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  realm_name TEXT NOT NULL,
+  accessible INTEGER NOT NULL DEFAULT 1 CHECK (accessible IN (0,1)),
+  notes      TEXT NULL,
+  UNIQUE(world_id, realm_name)
+);
+CREATE INDEX IF NOT EXISTS idx_world_planar_world ON world_planar_connections(world_id);
+
+-- Tone & Canon
+CREATE TABLE IF NOT EXISTS world_unchanging_truths (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id     INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  value        TEXT NOT NULL,       -- ≤120 in UI
+  order_index  INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_world_truths_world ON world_unchanging_truths(world_id);
+
+-- Master Catalogs - New Organizations
+CREATE TABLE IF NOT EXISTS world_organizations (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id   INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  name       TEXT NOT NULL,
+  type       TEXT NULL,           -- Merchant Guild, Spy Network, etc.
+  description TEXT NULL,
+  UNIQUE(world_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_world_orgs_world ON world_organizations(world_id);
+
+CREATE TABLE IF NOT EXISTS world_noble_houses (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id   INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  name       TEXT NOT NULL,
+  description TEXT NULL,
+  UNIQUE(world_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_world_houses_world ON world_noble_houses(world_id);
+
+CREATE TABLE IF NOT EXISTS world_trade_goods (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id   INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  name       TEXT NOT NULL,
+  base_value INTEGER NULL,       -- in credits
+  rarity     TEXT NULL,
+  description TEXT NULL,
+  UNIQUE(world_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_world_trade_world ON world_trade_goods(world_id);
+
+CREATE TABLE IF NOT EXISTS world_natural_disasters (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id   INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  name       TEXT NOT NULL,
+  type       TEXT NULL,           -- earthquake, storm, etc.
+  description TEXT NULL,
+  UNIQUE(world_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_world_disasters_world ON world_natural_disasters(world_id);
+
+-- World Timeline (Vertebrae) - High-level eras
+CREATE TABLE IF NOT EXISTS world_timeline_vertebrae (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id     INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  name         TEXT NOT NULL,
+  description  TEXT NULL,
+  start_year   INTEGER NULL,
+  end_year     INTEGER NULL,
+  is_pivot     INTEGER NOT NULL DEFAULT 0 CHECK (is_pivot IN (0,1)),
+  order_index  INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_world_timeline_world ON world_timeline_vertebrae(world_id);
+
+-- =========================================================
+-- EXTENDED FORM DATA - NEW TABLES FOR ALL FORM COMPONENTS
+-- =========================================================
+
+-- Geography Foundation - Extended
+CREATE TABLE IF NOT EXISTS world_geography_regions (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id     INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  name         TEXT NOT NULL,
+  type         TEXT NULL,           -- Kingdom, Province, Territory, etc.
+  population   INTEGER NULL,
+  governance   TEXT NULL,          -- Democracy, Monarchy, etc.
+  description  TEXT NULL,
+  order_index  INTEGER NOT NULL DEFAULT 0,
+  UNIQUE(world_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS world_geography_biomes (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id     INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  name         TEXT NOT NULL,
+  climate      TEXT NULL,
+  flora        TEXT NULL,
+  fauna        TEXT NULL,
+  description  TEXT NULL,
+  UNIQUE(world_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS world_geography_landmarks (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id     INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  name         TEXT NOT NULL,
+  type         TEXT NULL,           -- Natural, Artificial, Mystical, etc.
+  significance TEXT NULL,
+  location     TEXT NULL,
+  description  TEXT NULL,
+  UNIQUE(world_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS world_geography_trade_routes (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id     INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  name         TEXT NOT NULL,
+  from_location TEXT NULL,
+  to_location   TEXT NULL,
+  goods         TEXT NULL,          -- JSON or comma-separated
+  dangers       TEXT NULL,
+  travel_time   TEXT NULL,
+  description   TEXT NULL,
+  UNIQUE(world_id, name)
+);
+
+-- Technology Window - Extended
+CREATE TABLE IF NOT EXISTS world_technology_categories (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id     INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  category     TEXT NOT NULL,
+  level        TEXT NULL,          -- Stone Age, Industrial, etc.
+  description  TEXT NULL,
+  restrictions TEXT NULL,
+  UNIQUE(world_id, category)
+);
+
+CREATE TABLE IF NOT EXISTS world_technology_innovations (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id     INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  name         TEXT NOT NULL,
+  category     TEXT NULL,
+  era          TEXT NULL,
+  description  TEXT NULL,
+  impact       TEXT NULL,
+  requirements TEXT NULL,
+  UNIQUE(world_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS world_technology_restrictions (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id     INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  restriction  TEXT NOT NULL,
+  reason       TEXT NULL,
+  scope        TEXT NULL,          -- Global, Regional, Cultural
+  exceptions   TEXT NULL,
+  UNIQUE(world_id, restriction)
+);
+
+-- Tone & Canon - Extended
+CREATE TABLE IF NOT EXISTS world_tone_content_warnings (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id     INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  warning      TEXT NOT NULL,
+  severity     TEXT NULL,          -- Mild, Moderate, Severe
+  description  TEXT NULL,
+  UNIQUE(world_id, warning)
+);
+
+CREATE TABLE IF NOT EXISTS world_tone_narrative_styles (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id     INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  style        TEXT NOT NULL,
+  description  TEXT NULL,
+  UNIQUE(world_id, style)
+);
+
+CREATE TABLE IF NOT EXISTS world_tone_thematic_elements (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id     INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  element      TEXT NOT NULL,
+  prominence   TEXT NULL,          -- Primary, Secondary, Background
+  description  TEXT NULL,
+  UNIQUE(world_id, element)
+);
+
+CREATE TABLE IF NOT EXISTS world_tone_canonical_rules (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id     INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  rule         TEXT NOT NULL,
+  type         TEXT NULL,          -- Character, Plot, Setting, etc.
+  enforcement  TEXT NULL,          -- Strict, Flexible, Guideline
+  exceptions   TEXT NULL,
+  description  TEXT NULL,
+  order_index  INTEGER NOT NULL DEFAULT 0
+);
+
+-- Cosmology & Realms - Extended
+CREATE TABLE IF NOT EXISTS world_cosmology_planes (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id       INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  name           TEXT NOT NULL,
+  plane_type     TEXT NULL,       -- Material, Elemental, Divine, etc.
+  description    TEXT NULL,
+  inhabitants    TEXT NULL,
+  access_method  TEXT NULL,
+  dangers        TEXT NULL,
+  alignment      TEXT NULL,
+  order_index    INTEGER NOT NULL DEFAULT 0,
+  UNIQUE(world_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS world_cosmology_dimensional_rules (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id     INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  rule         TEXT NOT NULL,
+  scope        TEXT NULL,          -- Universal, Planar, Regional, etc.
+  effects      TEXT NULL,
+  exceptions   TEXT NULL,
+  order_index  INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS world_cosmology_deities (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id     INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  name         TEXT NOT NULL,
+  domain       TEXT NULL,
+  alignment    TEXT NULL,
+  power_level  TEXT NULL,          -- Greater, Intermediate, Lesser, etc.
+  description  TEXT NULL,
+  followers    TEXT NULL,
+  UNIQUE(world_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS world_cosmology_afterlife_realms (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id     INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  name         TEXT NOT NULL,
+  criteria     TEXT NULL,          -- Who goes here
+  description  TEXT NULL,
+  duration     TEXT NULL,          -- Eternal, Temporary, etc.
+  order_index  INTEGER NOT NULL DEFAULT 0,
+  UNIQUE(world_id, name)
+);
+
+-- Master Catalogs - Extended
+CREATE TABLE IF NOT EXISTS world_catalog_language_families (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id       INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  name           TEXT NOT NULL,
+  description    TEXT NULL,
+  languages      TEXT NULL,        -- JSON array or comma-separated
+  writing_system TEXT NULL,
+  speakers       TEXT NULL,
+  status         TEXT NULL,        -- Thriving, Declining, Dead, etc.
+  UNIQUE(world_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS world_catalog_currency_systems (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id       INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  name           TEXT NOT NULL,
+  currency_type  TEXT NULL,        -- Metal Coins, Paper, Barter, etc.
+  denominations  TEXT NULL,        -- JSON array or comma-separated
+  exchange_rates TEXT NULL,
+  regions        TEXT NULL,        -- JSON array or comma-separated
+  backing        TEXT NULL,        -- Gold standard, government, etc.
+  notes          TEXT NULL,
+  UNIQUE(world_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS world_catalog_organizations (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id     INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  name         TEXT NOT NULL,
+  org_type     TEXT NULL,          -- Guild, Religious Order, Military, etc.
+  scope        TEXT NULL,          -- Local, Regional, Global, etc.
+  alignment    TEXT NULL,
+  goals        TEXT NULL,
+  structure    TEXT NULL,
+  membership   TEXT NULL,
+  resources    TEXT NULL,
+  reputation   TEXT NULL,
+  rivals       TEXT NULL,          -- JSON array or comma-separated
+  allies       TEXT NULL,          -- JSON array or comma-separated
+  UNIQUE(world_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS world_catalog_common_items (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id     INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  name         TEXT NOT NULL,
+  category     TEXT NULL,
+  rarity       TEXT NULL,
+  value        TEXT NULL,
+  description  TEXT NULL,
+  availability TEXT NULL,
+  regions      TEXT NULL,          -- JSON array or comma-separated
+  uses         TEXT NULL,          -- JSON array or comma-separated
+  UNIQUE(world_id, name)
+);
+
+-- Meta configuration tables for custom categories
+CREATE TABLE IF NOT EXISTS world_catalog_organization_types (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id     INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  type_name    TEXT NOT NULL,
+  UNIQUE(world_id, type_name)
+);
+
+CREATE TABLE IF NOT EXISTS world_catalog_item_categories (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id     INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  category_name TEXT NOT NULL,
+  UNIQUE(world_id, category_name)
+);
+
+CREATE TABLE IF NOT EXISTS world_catalog_rarity_levels (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id     INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  rarity_name  TEXT NOT NULL,
+  UNIQUE(world_id, rarity_name)
+);
+
+-- Add indexes for new tables
+CREATE INDEX IF NOT EXISTS idx_world_geography_regions_world ON world_geography_regions(world_id);
+CREATE INDEX IF NOT EXISTS idx_world_geography_biomes_world ON world_geography_biomes(world_id);
+CREATE INDEX IF NOT EXISTS idx_world_geography_landmarks_world ON world_geography_landmarks(world_id);
+CREATE INDEX IF NOT EXISTS idx_world_geography_trade_routes_world ON world_geography_trade_routes(world_id);
+CREATE INDEX IF NOT EXISTS idx_world_technology_categories_world ON world_technology_categories(world_id);
+CREATE INDEX IF NOT EXISTS idx_world_technology_innovations_world ON world_technology_innovations(world_id);
+CREATE INDEX IF NOT EXISTS idx_world_technology_restrictions_world ON world_technology_restrictions(world_id);
+CREATE INDEX IF NOT EXISTS idx_world_tone_warnings_world ON world_tone_content_warnings(world_id);
+CREATE INDEX IF NOT EXISTS idx_world_tone_styles_world ON world_tone_narrative_styles(world_id);
+CREATE INDEX IF NOT EXISTS idx_world_tone_elements_world ON world_tone_thematic_elements(world_id);
+CREATE INDEX IF NOT EXISTS idx_world_tone_rules_world ON world_tone_canonical_rules(world_id);
+CREATE INDEX IF NOT EXISTS idx_world_cosmology_planes_world ON world_cosmology_planes(world_id);
+CREATE INDEX IF NOT EXISTS idx_world_cosmology_rules_world ON world_cosmology_dimensional_rules(world_id);
+CREATE INDEX IF NOT EXISTS idx_world_cosmology_deities_world ON world_cosmology_deities(world_id);
+CREATE INDEX IF NOT EXISTS idx_world_cosmology_afterlife_world ON world_cosmology_afterlife_realms(world_id);
+CREATE INDEX IF NOT EXISTS idx_world_catalog_languages_world ON world_catalog_language_families(world_id);
+CREATE INDEX IF NOT EXISTS idx_world_catalog_currencies_world ON world_catalog_currency_systems(world_id);
+CREATE INDEX IF NOT EXISTS idx_world_catalog_orgs_world ON world_catalog_organizations(world_id);
+CREATE INDEX IF NOT EXISTS idx_world_catalog_items_world ON world_catalog_common_items(world_id);
+CREATE INDEX IF NOT EXISTS idx_world_catalog_org_types_world ON world_catalog_organization_types(world_id);
+CREATE INDEX IF NOT EXISTS idx_world_catalog_item_cats_world ON world_catalog_item_categories(world_id);
+CREATE INDEX IF NOT EXISTS idx_world_catalog_rarities_world ON world_catalog_rarity_levels(world_id);
 
 COMMIT;
 `);

@@ -1,468 +1,743 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import Link from "next/link";
 
-// ---- Types with stable ids ----
-type UID = string;
-type Moon  = { id: UID; name: string; cycle: number | ""; omen: string };
-type Month = { id: UID; name: string; days: number | "" };
-type Realm = { id: UID; name: string; type: string; traits: string; travel: string; bleed: string };
-type Named = { id: UID; value: string };
+// Import form components
+import BasicInfoForm, { BasicInfoData } from "@/components/worldbuilder/world-details/BasicInfoForm";
+import AstralBodiesForm, { AstralBodiesData } from "@/components/worldbuilder/world-details/AstralBodiesForm";
+import TimeCalendarForm, { TimeCalendarData } from "@/components/worldbuilder/world-details/TimeCalendarForm";
+import PlanetProfileForm, { PlanetProfileData } from "@/components/worldbuilder/world-details/PlanetProfileForm";
+import MagicModelForm, { MagicModelData } from "@/components/worldbuilder/world-details/MagicModelForm";
+import GeographyFoundationForm, { GeographyFoundationData } from "@/components/worldbuilder/world-details/GeographyFoundationForm";
+import TechnologyWindowForm, { TechnologyWindowData } from "@/components/worldbuilder/world-details/TechnologyWindowForm";
+import ToneCanonForm, { ToneCanonData } from "@/components/worldbuilder/world-details/ToneCanonForm";
+import CosmologyRealmsForm, { CosmologyRealmsData } from "@/components/worldbuilder/world-details/CosmologyRealmsForm";
+import MasterCatalogsForm, { MasterCatalogsData } from "@/components/worldbuilder/world-details/MasterCatalogsForm";
 
-const uid = () =>
-  (typeof crypto !== "undefined" && "randomUUID" in crypto)
-    ? crypto.randomUUID()
-    : Math.random().toString(36).slice(2) + Date.now().toString(36);
+// Loading component
+const Loading = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
+  </div>
+);
 
-const presetGenreTags = ["Fantasy","Sci-Fi","Dieselpunk","Cyberpunk","Weird","Mythic","Pulp","Grim","Heroic","Cosmic"];
-
-// ===== UI COMPONENTS (moved outside to prevent recreation on re-renders) =====
-const Section = ({ title, children, subtitle }: { title: string; subtitle?: string; children: React.ReactNode }) => (
-  <section className="rounded-2xl border border-white/15 bg-white/10 p-5 md:p-6 backdrop-blur-sm shadow-sm">
-    <div className="mb-4">
-      <h2 className="text-xl md:text-2xl font-semibold tracking-tight text-zinc-100">{title}</h2>
-      {subtitle && <p className="text-sm text-zinc-300 mt-1">{subtitle}</p>}
+// Error component
+const ErrorMessage = ({ message }: { message: string }) => (
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="text-center">
+      <div className="text-red-500 text-xl mb-4">⚠️ Error</div>
+      <div className="text-gray-700">{message}</div>
     </div>
-    {children}
-  </section>
-);
-
-const Card = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <div className="rounded-xl border border-white/15 bg-black/30 p-4">
-    <h3 className="font-semibold mb-3 text-zinc-100">{title}</h3>
-    {children}
   </div>
 );
 
-const Input = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
-  <input
-    {...props}
-    autoComplete="off"
-    className={`w/full rounded-lg bg-white/10 text-zinc-100 placeholder:text-zinc-400 border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400 ${props.className || ""}`}
-  />
-);
-
-const Textarea = (props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
-  <textarea
-    {...props}
-    autoComplete="off"
-    className={`w/full rounded-lg bg-white/10 text-zinc-100 placeholder:text-zinc-400 border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400 ${props.className || ""}`}
-  />
-);
-
-// --- BetterSelect: dark dropdowns that are readable ---
-const BetterSelect = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => (
-  <div className="relative">
-    <select
-      {...props}
-      className={`w/full appearance-none rounded-lg bg-[#0b0b0f] text-zinc-100 border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400 pr-9 ${props.className || ""}`}
-    />
-    <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-zinc-300">▾</span>
-  </div>
-);
-
-/* ===== NumberInput: free typing, commit on blur/Enter, clamps ===== */
-function NumberInput({
-  value,
-  onCommit,
-  min,
-  max,
-  step,
-  placeholder,
-}: {
-  value: number | "";
-  onCommit: (v: number | "") => void;
-  min?: number;
-  max?: number;
-  step?: number | string;
-  placeholder?: string;
-}) {
-  const [raw, setRaw] = useState<string>(value === "" ? "" : String(value));
-  useEffect(() => { const nv = value === "" ? "" : String(value); if (nv !== raw) setRaw(nv); }, [value, raw]); // sync from parent
-
-  const commit = () => {
-    const s = raw.trim();
-    if (s === "") { onCommit(""); return; }
-    const n = Number(s);
-    if (Number.isNaN(n)) { onCommit(""); return; }
-    const clamped = clamp(n, min, max);
-    onCommit(clamped);
-    setRaw(String(clamped));
-  };
+// Navigation tabs component
+const NavigationTabs = ({ currentSection, onSectionChange }: {
+  currentSection: string;
+  onSectionChange: (section: string) => void;
+}) => {
+  const sections = [
+    { id: "basic", label: "Basic Info", icon: "📋" },
+    { id: "astral", label: "Astral Bodies", icon: "☀️" },
+    { id: "time", label: "Time & Calendar", icon: "📅" },
+    { id: "planet", label: "Planet Profile", icon: "🌍" },
+    { id: "geography", label: "Geography", icon: "🏔️" },
+    { id: "magic", label: "Magic Model", icon: "✨" },
+    { id: "technology", label: "Technology", icon: "⚙️" },
+    { id: "tone", label: "Tone & Canon", icon: "📜" },
+    { id: "cosmology", label: "Cosmology", icon: "🌌" },
+    { id: "catalogs", label: "Master Catalogs", icon: "📚" }
+  ];
 
   return (
-    <input
-      inputMode="decimal"
-      autoComplete="off"
-      placeholder={placeholder}
-      value={raw}
-      onChange={(e) => setRaw(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commit(); } }}
-      className="w-full rounded-lg bg-white/10 text-zinc-100 placeholder:text-zinc-400 border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400"
-    />
+    <div className="border-b border-white/15 bg-white/10 backdrop-blur-sm sticky top-0 z-10">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex overflow-x-auto">
+          {sections.map((section) => (
+            <button
+              key={section.id}
+              onClick={() => onSectionChange(section.id)}
+              className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                currentSection === section.id
+                  ? "border-amber-400 text-amber-100"
+                  : "border-transparent text-zinc-300 hover:text-zinc-100 hover:border-white/30"
+              }`}
+            >
+              <span className="mr-2">{section.icon}</span>
+              {section.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
   );
+};
 
-  function clamp(n: number, min?: number, max?: number) {
-    if (typeof min === "number") n = Math.max(min, n);
-    if (typeof max === "number") n = Math.min(max, n);
-    return n;
+// Save indicator component
+const SaveIndicator = ({ isSaving, lastSaved }: {
+  isSaving: boolean;
+  lastSaved: Date | null;
+}) => {
+  if (isSaving) {
+    return (
+      <div className="flex items-center text-amber-400">
+        <div className="animate-spin rounded-full h-4 w-4 border-2 border-amber-400 border-t-transparent mr-2"></div>
+        <span className="text-sm">Saving...</span>
+      </div>
+    );
   }
+
+  if (lastSaved) {
+    return (
+      <div className="flex items-center text-green-400">
+        <span className="mr-2">✓</span>
+        <span className="text-sm">Saved {lastSaved.toLocaleTimeString()}</span>
+      </div>
+    );
+  }
+
+  return null;
+};
+
+// Main data interface combining all form data
+interface WorldDetailsData {
+  basic: BasicInfoData;
+  astral: AstralBodiesData;
+  time: TimeCalendarData;
+  planet: PlanetProfileData;
+  magic: MagicModelData;
+  geography: GeographyFoundationData;
+  technology: TechnologyWindowData;
+  tone: ToneCanonData;
+  cosmology: CosmologyRealmsData;
+  catalogs: MasterCatalogsData;
 }
 
 export default function WorldDetailsPage() {
-  // ===== URL Parameters =====
   const searchParams = useSearchParams();
-  const worldId = searchParams.get('worldId');
+  const worldId = searchParams.get("worldId");
 
-  // ===== Data Loading =====
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [currentSection, setCurrentSection] = useState("basic");
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [worldName, setWorldName] = useState("");
+
+  const [data, setData] = useState<WorldDetailsData>({
+    basic: { name: "", pitch: "", tags: [] },
+    astral: { sunsCount: 1, moons: [] },
+    time: { dayHours: null, yearDays: null, months: [], weekdays: [], leapRule: "" },
+    planet: { 
+      planetType: "Terrestrial", 
+      planetTypeNote: "", 
+      sizeClass: "", 
+      gravityVsEarth: null, 
+      waterPct: null, 
+      climateBands: [], 
+      tectonics: "Medium" 
+    },
+    magic: { 
+      magicSystems: [], 
+      magicCustoms: [], 
+      sourceStatement: "", 
+      unbreakableRules: [], 
+      corruptionLevel: "Moderate", 
+      corruptionNote: "", 
+      magicRarity: "Uncommon" 
+    },
+    geography: {
+      worldShape: "",
+      worldSize: "",
+      continents: [],
+      regions: [],
+      biomes: [],
+      landmarks: [],
+      tradeRoutes: [],
+      notes: ""
+    },
+    technology: {
+      overallLevel: "",
+      availableCategories: [],
+      customCategories: [],
+      progressionRules: "",
+      restrictedTechnologies: [],
+      advancementMechanism: "",
+      magicTechInteraction: "",
+      notes: ""
+    },
+    tone: {
+      toneFlags: [],
+      contentRating: "",
+      contentWarnings: [],
+      narrativeStyle: "",
+      customNarrativeStyles: [],
+      canonicalRules: [],
+      thematicElements: [],
+      conflictTypes: [],
+      moodAtmosphere: "",
+      playerExpectations: "",
+      gmGuidance: ""
+    },
+    cosmology: {
+      cosmicStructure: "",
+      planesOfExistence: [],
+      dimensionalRules: [],
+      deities: [],
+      afterlifeSystem: "",
+      afterlifeRealms: [],
+      planarTravel: "",
+      cosmicThreats: "",
+      universalLaws: "",
+      notes: ""
+    },
+    catalogs: {
+      languageFamilies: [],
+      currencySystems: [],
+      organizations: [],
+      commonItems: [],
+      organizationTypes: [],
+      itemCategories: [],
+      rarityLevels: [],
+      notes: ""
+    }
+  });
+
+  // Load world details from API
   useEffect(() => {
-    if (worldId) {
-      console.log('WorldDetails: Loading data for worldId:', worldId);
-      loadWorldData(worldId);
-    }
-  }, [worldId]);
-
-  const loadWorldData = async (worldId: string) => {
-    try {
-      const response = await fetch(`/api?world_id=${worldId}`);
-      if (!response.ok) {
-        throw new Error(`Failed to load world data: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      if (!data.ok) {
-        throw new Error(data.error || 'Failed to load world data');
-      }
-      
-      // Populate basic world info
-      setWorldName(data.world?.name || "");
-      setPitch(data.world?.description || ""); // Use world description instead of details.pitch
-      
-      // Populate tags
-      setTags(data.tags && data.tags.length > 0 ? data.tags : ["Fantasy"]);
-      
-      // Populate astral bodies
-      if (data.details) {
-        setSunCount(data.details.suns_count ?? 1);
-      }
-      if (data.moons) {
-        setMoons(data.moons.map((m: any) => ({
-          id: uid(),
-          name: m.name || "",
-          cycle: m.cycle_days ?? "",
-          omen: m.omen || ""
-        })));
-      }
-      
-      // Populate time & calendar
-      if (data.details) {
-        setDayHours(data.details.day_hours ?? "");
-        setYearDays(data.details.year_days ?? "");
-        setLeapRule(data.details.leap_rule || "");
-      }
-      if (data.months) {
-        setMonths(data.months.map((m: any) => ({
-          id: uid(),
-          name: m.name || "",
-          days: m.days ?? ""
-        })));
-      }
-      if (data.weekdays) {
-        setWeekdays(data.weekdays.map((w: any) => ({
-          id: uid(),
-          value: w.value || ""
-        })));
-      }
-      
-      // Populate planet profile
-      if (data.details) {
-        setPlanetType(data.details.planet_type || "Terrestrial");
-        setSizeClass(data.details.size_class || "");
-        setGravity(data.details.gravity_vs_earth ?? "");
-        setWaterPct(data.details.water_pct ?? "");
-        setTectonics(data.details.tectonics || "Medium");
-      }
-      setClimates(data.climates || []);
-      
-      // Populate magic model
-      if (data.magic) {
-        const systems = data.magic.builtins || [];
-        if (data.magic.customs && data.magic.customs.length > 0) {
-          systems.push("Custom(+name)");
-        }
-        setMagicSystems(systems);
-        setCustomMagic(data.magic.customs || []);
-      }
-      if (data.details) {
-        setSourceStatement(data.details.source_statement || "");
-        setCorruption(data.details.corruption_level || "Moderate");
-      }
-      if (data.unbreakables) {
-        setUnbreakables(data.unbreakables.map((u: any) => ({
-          id: uid(),
-          value: u.value || ""
-        })));
-      }
-      
-      // Populate tech window
-      if (data.details) {
-        setTechFrom(data.details.tech_from || "Iron");
-        setTechTo(data.details.tech_to || "Industrial");
-      }
-      if (data.bans) {
-        setBans(data.bans.map((b: string) => ({
-          id: uid(),
-          value: b
-        })));
-      }
-      
-      // Populate tone flags
-      setToneFlags(data.tone_flags || ["Heroic"]);
-      
-      // Populate cosmology
-      if (data.details) {
-        setPlayerSafeSummaryOn(data.details.player_safe_summary_on !== 0);
-      }
-      if (data.realms) {
-        setRealms(data.realms.map((r: any) => ({
-          id: uid(),
-          name: r.name || "",
-          type: r.type || "",
-          traits: r.traits || "",
-          travel: r.travel || "",
-          bleed: r.bleed || ""
-        })));
-      }
-      
-      // Populate master catalogs
-      if (data.race_catalog) {
-        setRaces(data.race_catalog.map((r: any) => r.name));
-      }
-      if (data.creature_catalog) {
-        setCreatures(data.creature_catalog.map((c: any) => c.name));
-      }
-      setLanguages(data.languages || []);
-      setDeities(data.deities || []);
-      setFactions(data.factions || []);
-      
-      // Populate available options from database
-      if (data.all_races) {
-        setAllRaces(data.all_races.map((r: any) => r.name));
-      }
-      if (data.all_creatures) {
-        setAllCreatures(data.all_creatures.map((c: any) => c.name));
-      }
-      
-      console.log('WorldDetails: Data loaded successfully');
-    } catch (error) {
-      console.error('Failed to load world data:', error);
-      // You might want to show an error message to the user here
-    }
-  };
-
-  const saveWorldData = async () => {
     if (!worldId) {
-      console.error('No worldId available for saving');
+      setError("No world ID provided");
+      setLoading(false);
       return;
     }
 
+    const loadWorldDetails = async () => {
+      try {
+        setLoading(true);
+        
+        // First get the world name
+        const worldResponse = await fetch(`/api/world?id=${worldId}`);
+        if (!worldResponse.ok) {
+          throw new Error("Failed to fetch world");
+        }
+        const worldResult = await worldResponse.json();
+        if (!worldResult.ok) {
+          throw new Error(worldResult.error || "Failed to fetch world");
+        }
+        setWorldName(worldResult.data.name);
+
+        // Then get the world details
+        const detailsResponse = await fetch(`/api/world-details?worldId=${worldId}`);
+        if (!detailsResponse.ok) {
+          throw new Error("Failed to fetch world details");
+        }
+        const result = await detailsResponse.json();
+        
+        if (!result.ok) {
+          throw new Error(result.error || "Failed to fetch world details");
+        }
+
+        const details = result.data;
+        
+        // Map API data to our form structure
+        setData({
+          basic: {
+            name: worldResult.data.name,
+            pitch: details.pitch || "",
+            tags: details.tags || []
+          },
+          astral: {
+            sunsCount: details.suns_count || 1,
+            moons: details.moons || []
+          },
+          time: {
+            dayHours: details.day_hours,
+            yearDays: details.year_days,
+            months: details.months || [],
+            weekdays: details.weekdays || [],
+            leapRule: details.leap_rule || ""
+          },
+          planet: {
+            planetType: details.planet_type || "Terrestrial",
+            planetTypeNote: details.planet_type_note || "",
+            sizeClass: details.size_class || "",
+            gravityVsEarth: details.gravity_vs_earth,
+            waterPct: details.water_pct,
+            climateBands: details.climates || [],
+            tectonics: details.tectonics || "Medium"
+          },
+          magic: {
+            magicSystems: details.magicSystems || [],
+            magicCustoms: details.magicCustoms || [],
+            sourceStatement: details.source_statement || "",
+            unbreakableRules: details.unbreakables || [],
+            corruptionLevel: details.corruption_level || "Moderate",
+            corruptionNote: details.corruption_note || "",
+            magicRarity: details.magic_rarity || "Uncommon"
+          },
+          geography: {
+            worldShape: details.geography_world_shape || "",
+            worldSize: details.geography_world_size || "",
+            continents: details.geographyRegions || [],
+            regions: details.geographyRegions || [],
+            biomes: details.geographyBiomes || [],
+            landmarks: details.geographyLandmarks || [],
+            tradeRoutes: details.geographyTradeRoutes || [],
+            notes: details.geography_notes || ""
+          },
+          technology: {
+            overallLevel: details.tech_from || "",
+            availableCategories: details.technologyCategories || [],
+            customCategories: details.technologyInnovations || [],
+            progressionRules: details.technology_progression || "",
+            restrictedTechnologies: details.technologyRestrictions || [],
+            advancementMechanism: details.technology_advancement || "",
+            magicTechInteraction: details.technology_magic_interaction || "",
+            notes: details.technology_notes || ""
+          },
+          tone: {
+            toneFlags: details.toneFlags || [],
+            contentRating: details.tone_content_rating || "",
+            contentWarnings: details.toneContentWarnings || [],
+            narrativeStyle: details.tone_narrative_style || "",
+            customNarrativeStyles: details.toneNarrativeStyles || [],
+            canonicalRules: details.toneCanonicalRules || [],
+            thematicElements: details.toneThematicElements || [],
+            conflictTypes: details.tone_conflict_types || [],
+            moodAtmosphere: details.tone_mood || "",
+            playerExpectations: details.tone_expectations || "",
+            gmGuidance: details.tone_guidance || ""
+          },
+          cosmology: {
+            cosmicStructure: details.cosmology_structure || "",
+            planesOfExistence: details.cosmologyPlanes || [],
+            dimensionalRules: details.cosmologyDimensionalRules || [],
+            deities: details.cosmologyDeities || [],
+            afterlifeSystem: details.cosmology_afterlife_system || "",
+            afterlifeRealms: details.cosmologyAfterlifeRealms || [],
+            planarTravel: details.cosmology_planar_travel || "",
+            cosmicThreats: details.cosmology_cosmic_threats || "",
+            universalLaws: details.cosmology_universal_laws || "",
+            notes: details.cosmology_notes || ""
+          },
+          catalogs: {
+            languageFamilies: details.catalogLanguageFamilies || [],
+            currencySystems: details.catalogCurrencySystems || [],
+            organizations: details.catalogOrganizations || [],
+            commonItems: details.catalogCommonItems || [],
+            organizationTypes: details.catalogOrganizationTypes || [],
+            itemCategories: details.catalogItemCategories || [],
+            rarityLevels: details.catalogRarityLevels || [],
+            notes: details.catalog_notes || ""
+          }
+        });
+
+      } catch (err) {
+        console.error("Error loading world details:", err);
+        setError(err instanceof Error ? err.message : "Unknown error");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadWorldDetails();
+  }, [worldId]);
+
+  // Auto-save function
+  const saveChanges = async (sectionData: any, section: string) => {
+    if (!worldId || isSaving) return;
+
     try {
-      const payload = {
-        world_id: parseInt(worldId),
-        world_name: worldName,
-        world_description: pitch, // Save pitch as world description
-        details: {
-          suns_count: sunCount,
-          day_hours: dayHours === "" ? null : dayHours,
-          year_days: yearDays === "" ? null : yearDays,
-          leap_rule: leapRule || null,
-          planet_type: planetType,
-          planet_type_note: planetType === "Custom" ? sizeClass : null,
-          size_class: sizeClass || null,
-          gravity_vs_earth: gravity === "" ? null : gravity,
-          water_pct: waterPct === "" ? null : waterPct,
-          tectonics: tectonics,
-          source_statement: sourceStatement || null,
-          corruption_level: corruption,
-          corruption_note: null, // Add if corruption === "Custom"
-          tech_from: techFrom,
-          tech_to: techTo,
-          player_safe_summary_on: playerSafeSummaryOn ? 1 : 0
-        },
-        tags: tags,
-        moons: moons.map((m, index) => ({
-          name: m.name,
-          cycle_days: m.cycle === "" ? null : m.cycle,
-          omen: m.omen || null,
-          order_index: index
-        })),
-        months: months.map((m, index) => ({
-          name: m.name,
-          days: m.days === "" ? null : m.days,
-          order_index: index
-        })),
-        weekdays: weekdays.map((w, index) => ({
-          value: w.value,
-          order_index: index
-        })),
-        climates: climates,
-        magic: {
-          builtins: magicSystems.filter(s => s !== "Custom(+name)"),
-          customs: customMagic
-        },
-        unbreakables: unbreakables.map((u, index) => ({
-          value: u.value,
-          order_index: index
-        })),
-        bans: bans.map(b => b.value),
-        tone_flags: toneFlags,
-        realms: realms.map((r, index) => ({
-          name: r.name,
-          type: r.type || null,
-          traits: r.traits || null,
-          travel: r.travel || null,
-          bleed: r.bleed || null,
-          order_index: index
-        })),
-        languages: languages,
-        deities: deities,
-        factions: factions,
-        race_names: races,
-        creature_names: creatures
-      };
+      setIsSaving(true);
 
-      const response = await fetch('/api', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
+      // Map our form data back to API format
+      let updateData: any = { worldId: Number(worldId) };
 
-      if (!response.ok) {
-        throw new Error(`Failed to save world data: ${response.status}`);
+      if (section === "basic") {
+        updateData.op = "updateBasicInfo";
+        updateData.pitch = sectionData.pitch;
+        // Handle world name update separately via world API
+        if (sectionData.name !== worldName) {
+          const worldUpdateResponse = await fetch("/api/world", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              op: "updateWorld",
+              id: Number(worldId),
+              name: sectionData.name
+            })
+          });
+          if (worldUpdateResponse.ok) {
+            setWorldName(sectionData.name);
+          }
+        }
+        // Handle tags update
+        if (JSON.stringify(sectionData.tags) !== JSON.stringify(data.basic.tags)) {
+          await fetch("/api/world-details", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              op: "updateTags",
+              worldId: Number(worldId),
+              tags: sectionData.tags
+            })
+          });
+        }
+      } else if (section === "astral") {
+        updateData.op = "updateBasicInfo";
+        updateData.sunsCount = sectionData.sunsCount;
+        // Handle moons separately
+        if (JSON.stringify(sectionData.moons) !== JSON.stringify(data.astral.moons)) {
+          await fetch("/api/world-details", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              op: "updateMoons",
+              worldId: Number(worldId),
+              moons: sectionData.moons
+            })
+          });
+        }
+      } else if (section === "time") {
+        updateData.op = "updateBasicInfo";
+        updateData.dayHours = sectionData.dayHours;
+        updateData.yearDays = sectionData.yearDays;
+        updateData.leapRule = sectionData.leapRule;
+        // TODO: Handle months and weekdays updates
+      } else if (section === "planet") {
+        updateData.op = "updateBasicInfo";
+        updateData.planetType = sectionData.planetType;
+        updateData.planetTypeNote = sectionData.planetTypeNote;
+        updateData.sizeClass = sectionData.sizeClass;
+        updateData.gravityVsEarth = sectionData.gravityVsEarth;
+        updateData.waterPct = sectionData.waterPct;
+        updateData.tectonics = sectionData.tectonics;
+        // TODO: Handle climate bands
+      } else if (section === "magic") {
+        updateData.op = "updateBasicInfo";
+        updateData.sourceStatement = sectionData.sourceStatement;
+        updateData.corruptionLevel = sectionData.corruptionLevel;
+        updateData.corruptionNote = sectionData.corruptionNote;
+        updateData.magicRarity = sectionData.magicRarity;
+        // TODO: Handle magic systems and unbreakable rules
+      } else if (section === "geography") {
+        updateData.op = "updateBasicInfo";
+        updateData.geographyNotes = sectionData.notes;
+        
+        // Handle geography data updates separately
+        if (sectionData.regions && sectionData.regions.length > 0) {
+          await fetch("/api/world-details", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              op: "updateGeographyRegions",
+              worldId: Number(worldId),
+              regions: sectionData.regions
+            })
+          });
+        }
+        
+        if (sectionData.biomes && sectionData.biomes.length > 0) {
+          await fetch("/api/world-details", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              op: "updateGeographyBiomes", 
+              worldId: Number(worldId),
+              biomes: sectionData.biomes
+            })
+          });
+        }
+        
+        if (sectionData.landmarks && sectionData.landmarks.length > 0) {
+          await fetch("/api/world-details", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              op: "updateGeographyLandmarks",
+              worldId: Number(worldId),
+              landmarks: sectionData.landmarks
+            })
+          });
+        }
+        
+        if (sectionData.tradeRoutes && sectionData.tradeRoutes.length > 0) {
+          await fetch("/api/world-details", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              op: "updateGeographyTradeRoutes",
+              worldId: Number(worldId),
+              tradeRoutes: sectionData.tradeRoutes
+            })
+          });
+        }
+      } else if (section === "technology") {
+        updateData.op = "updateBasicInfo";
+        updateData.technologyNotes = sectionData.notes;
+        
+        // Handle technology data updates separately
+        if (sectionData.customCategories && sectionData.customCategories.length > 0) {
+          await fetch("/api/world-details", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              op: "updateTechnologyCategories",
+              worldId: Number(worldId),
+              categories: sectionData.customCategories
+            })
+          });
+        }
+      } else if (section === "tone") {
+        updateData.op = "updateBasicInfo";
+        updateData.toneCanonNotes = sectionData.notes;
+        
+        // Handle tone & canon data updates separately
+        if (sectionData.canonicalRules && sectionData.canonicalRules.length > 0) {
+          await fetch("/api/world-details", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              op: "updateToneCanonicalRules",
+              worldId: Number(worldId),
+              rules: sectionData.canonicalRules
+            })
+          });
+        }
+      } else if (section === "cosmology") {
+        updateData.op = "updateBasicInfo";
+        updateData.cosmologyStructure = sectionData.cosmicStructure;
+        updateData.cosmologyAfterlifeSystem = sectionData.afterlifeSystem;
+        updateData.cosmologyPlanarTravel = sectionData.planarTravel;
+        updateData.cosmologyCosmicThreats = sectionData.cosmicThreats;
+        updateData.cosmologyUniversalLaws = sectionData.universalLaws;
+        updateData.cosmologyNotes = sectionData.notes;
+        
+        // Handle cosmology data updates separately
+        if (sectionData.planesOfExistence && sectionData.planesOfExistence.length > 0) {
+          await fetch("/api/world-details", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              op: "updateCosmologyPlanes",
+              worldId: Number(worldId),
+              planes: sectionData.planesOfExistence
+            })
+          });
+        }
+        
+        if (sectionData.dimensionalRules && sectionData.dimensionalRules.length > 0) {
+          await fetch("/api/world-details", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              op: "updateCosmologyDimensionalRules",
+              worldId: Number(worldId),
+              dimensionalRules: sectionData.dimensionalRules
+            })
+          });
+        }
+        
+        if (sectionData.deities && sectionData.deities.length > 0) {
+          await fetch("/api/world-details", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              op: "updateCosmologyDeities",
+              worldId: Number(worldId),
+              deities: sectionData.deities
+            })
+          });
+        }
+        
+        if (sectionData.afterlifeRealms && sectionData.afterlifeRealms.length > 0) {
+          await fetch("/api/world-details", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              op: "updateCosmologyAfterlifeRealms",
+              worldId: Number(worldId),
+              afterlifeRealms: sectionData.afterlifeRealms
+            })
+          });
+        }
+      } else if (section === "catalogs") {
+        updateData.op = "updateBasicInfo";
+        updateData.catalogNotes = sectionData.notes;
+        
+        // Handle catalog data updates separately
+        if (sectionData.languageFamilies && sectionData.languageFamilies.length > 0) {
+          await fetch("/api/world-details", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              op: "updateCatalogLanguageFamilies",
+              worldId: Number(worldId),
+              languageFamilies: sectionData.languageFamilies
+            })
+          });
+        }
+        
+        if (sectionData.currencySystems && sectionData.currencySystems.length > 0) {
+          await fetch("/api/world-details", {
+            method: "POST", 
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              op: "updateCatalogCurrencySystems",
+              worldId: Number(worldId),
+              currencySystems: sectionData.currencySystems
+            })
+          });
+        }
+        
+        if (sectionData.organizations && sectionData.organizations.length > 0) {
+          await fetch("/api/world-details", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              op: "updateCatalogOrganizations",
+              worldId: Number(worldId),
+              organizations: sectionData.organizations
+            })
+          });
+        }
+        
+        if (sectionData.commonItems && sectionData.commonItems.length > 0) {
+          await fetch("/api/world-details", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              op: "updateCatalogCommonItems",
+              worldId: Number(worldId),
+              commonItems: sectionData.commonItems
+            })
+          });
+        }
+        
+        // Handle configuration updates
+        if (sectionData.organizationTypes && sectionData.organizationTypes.length > 0) {
+          await fetch("/api/world-details", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              op: "updateCatalogOrganizationTypes",
+              worldId: Number(worldId),
+              organizationTypes: sectionData.organizationTypes
+            })
+          });
+        }
+        
+        if (sectionData.itemCategories && sectionData.itemCategories.length > 0) {
+          await fetch("/api/world-details", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              op: "updateCatalogItemCategories",
+              worldId: Number(worldId),
+              itemCategories: sectionData.itemCategories
+            })
+          });
+        }
+        
+        if (sectionData.rarityLevels && sectionData.rarityLevels.length > 0) {
+          await fetch("/api/world-details", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              op: "updateCatalogRarityLevels",
+              worldId: Number(worldId),
+              rarityLevels: sectionData.rarityLevels
+            })
+          });
+        }
       }
 
-      const result = await response.json();
-      if (!result.ok) {
-        throw new Error(result.error || 'Failed to save world data');
+      // Only make API call if there are basic updates
+      if (Object.keys(updateData).length > 2) {
+        const response = await fetch("/api/world-details", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updateData)
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to save changes");
+        }
       }
 
-      console.log('WorldDetails: Data saved successfully');
-      // You might want to show a success message to the user here
-    } catch (error) {
-      console.error('Failed to save world data:', error);
-      // You might want to show an error message to the user here
+      setLastSaved(new Date());
+    } catch (err) {
+      console.error("Error saving:", err);
+      // TODO: Show error notification
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  // ===== Global guards =====
-  useEffect(() => {
-    if ("scrollRestoration" in history) {
-      const prev = history.scrollRestoration;
-      history.scrollRestoration = "manual";
-      return () => { history.scrollRestoration = prev; };
-    }
-  }, []);
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      const t = e.target as HTMLElement | null;
-      const a = t?.closest?.("a[href='#'], a[href='']") as HTMLAnchorElement | null;
-      if (a) e.preventDefault();
-    };
-    document.addEventListener("click", handler);
-    return () => document.removeEventListener("click", handler);
-  }, []);
+  // Update handlers for each section
+  const updateBasicInfo = (updates: Partial<BasicInfoData>) => {
+    const newData = { ...data.basic, ...updates };
+    setData(prev => ({ ...prev, basic: newData }));
+    saveChanges(newData, "basic");
+  };
 
-  // ===== Basic Info =====
-  const [worldName, setWorldName] = useState("");
-  const [pitch, setPitch] = useState("");
-  const [tags, setTags] = useState<string[]>(["Fantasy"]);
-  const [customTag, setCustomTag] = useState("");
+  const updateAstralBodies = (updates: Partial<AstralBodiesData>) => {
+    const newData = { ...data.astral, ...updates };
+    setData(prev => ({ ...prev, astral: newData }));
+    saveChanges(newData, "astral");
+  };
 
-  // ===== Astral Bodies =====
-  const [sunCount, setSunCount] = useState(1);
-  const [moons, setMoons] = useState<Moon[]>([]);
+  const updateTimeCalendar = (updates: Partial<TimeCalendarData>) => {
+    const newData = { ...data.time, ...updates };
+    setData(prev => ({ ...prev, time: newData }));
+    saveChanges(newData, "time");
+  };
 
-  // ===== Time & Calendar =====
-  const [dayHours, setDayHours] = useState<number | "">("");
-  const [yearDays, setYearDays] = useState<number | "">("");
-  const [months, setMonths] = useState<Month[]>([]);
-  const [weekdays, setWeekdays] = useState<Named[]>([]);
-  const [leapRule, setLeapRule] = useState("");
+  const updatePlanetProfile = (updates: Partial<PlanetProfileData>) => {
+    const newData = { ...data.planet, ...updates };
+    setData(prev => ({ ...prev, planet: newData }));
+    saveChanges(newData, "planet");
+  };
 
-  // ===== Planet Profile =====
-  const [planetType, setPlanetType] = useState("Terrestrial");
-  const [sizeClass, setSizeClass] = useState("");
-  const [gravity, setGravity] = useState<number | "">("");
-  const [waterPct, setWaterPct] = useState<number | "">("");
-  const [climates, setClimates] = useState<string[]>([]);
-  const [tectonics, setTectonics] = useState("Medium");
+  const updateMagicModel = (updates: Partial<MagicModelData>) => {
+    const newData = { ...data.magic, ...updates };
+    setData(prev => ({ ...prev, magic: newData }));
+    saveChanges(newData, "magic");
+  };
 
-  // ===== Magic Model =====
-  const [magicSystems, setMagicSystems] = useState<string[]>([]);
-  const [customMagic, setCustomMagic] = useState<string[]>([]); // ← NEW
-  const [sourceStatement, setSourceStatement] = useState("");
-  const [unbreakables, setUnbreakables] = useState<Named[]>([]);
-  const [newRule, setNewRule] = useState("");
-  const [corruption, setCorruption] = useState("Moderate");
+  const updateGeographyFoundation = (updates: Partial<GeographyFoundationData>) => {
+    const newData = { ...data.geography, ...updates };
+    setData(prev => ({ ...prev, geography: newData }));
+    saveChanges(newData, "geography");
+  };
 
-  // Combined list for save/export (excludes the sentinel "Custom(+name)")
-  const effectiveMagicSystems = [
-    ...magicSystems.filter((m) => m !== "Custom(+name)"),
-    ...customMagic,
-  ];
+  const updateTechnologyWindow = (updates: Partial<TechnologyWindowData>) => {
+    const newData = { ...data.technology, ...updates };
+    setData(prev => ({ ...prev, technology: newData }));
+    saveChanges(newData, "technology");
+  };
 
-  // ===== Tech Window =====
-  const techLevels = ["Stone","Bronze","Iron","Medieval","Renaissance","Industrial","Diesel","Atomic","Digital","Cyber","Interstellar"];
-  const [techFrom, setTechFrom] = useState("Iron");
-  const [techTo, setTechTo] = useState("Industrial");
-  const [bans, setBans] = useState<Named[]>([]);
+  const updateToneCanon = (updates: Partial<ToneCanonData>) => {
+    const newData = { ...data.tone, ...updates };
+    setData(prev => ({ ...prev, tone: newData }));
+    saveChanges(newData, "tone");
+  };
 
-  // ===== Tone & Canon =====
-  const [worldTruths, setWorldTruths] = useState<Named[]>([]);
-  const [truthDraft, setTruthDraft] = useState("");
-  const toneFlagsAll = ["Heroic","Grim","Pulp","Mythic","Weird","Cosmic"];
-  const [toneFlags, setToneFlags] = useState<string[]>(["Heroic"]);
+  const updateCosmologyRealms = (updates: Partial<CosmologyRealmsData>) => {
+    const newData = { ...data.cosmology, ...updates };
+    setData(prev => ({ ...prev, cosmology: newData }));
+    saveChanges(newData, "cosmology");
+  };
 
-  // ===== Cosmology & Realms =====
-  const [realms, setRealms] = useState<Realm[]>([]);
-  const [playerSafeSummaryOn, setPlayerSafeSummaryOn] = useState(true);
+  const updateMasterCatalogs = (updates: Partial<MasterCatalogsData>) => {
+    const newData = { ...data.catalogs, ...updates };
+    setData(prev => ({ ...prev, catalogs: newData }));
+    saveChanges(newData, "catalogs");
+  };
 
-  // ===== Master Catalogs =====
-  const [races, setRaces] = useState<string[]>([]);
-  const [creatures, setCreatures] = useState<string[]>([]);
-  const [languages, setLanguages] = useState<string[]>([]);
-  const [deities, setDeities] = useState<string[]>([]);
-  const [factions, setFactions] = useState<string[]>([]);
-
-  // ===== Available Options (from database) =====
-  const [allRaces, setAllRaces] = useState<string[]>([]);
-  const [allCreatures, setAllCreatures] = useState<string[]>([]);
-
-  // ===== Refs =====
-  const eWeekRef = useRef<HTMLInputElement>(null);
-
-  // ===== Utilities (memoized to prevent re-creation on renders) =====
-  const addChip = useCallback((list: string[], setList: (v: string[]) => void, value: string) => {
-    const v = value.trim();
-    if (!v || list.includes(v)) return;
-    setList([...list, v]);
-  }, []);
-
-  const removeChip = useCallback((list: string[], setList: (v: string[]) => void, value: string) =>
-    setList(list.filter((t) => t !== value)), []);
-
-  const moveIndex = useCallback(<T,>(arr: T[], from: number, to: number) => {
-    if (from === to) return arr;
-    const c = [...arr];
-    const [it] = c.splice(from, 1);
-    c.splice(to, 0, it);
-    return c;
-  }, []);
+  if (loading) return <Loading />;
+  if (error) return <ErrorMessage message={error} />;
 
   return (
     <form
@@ -470,662 +745,58 @@ export default function WorldDetailsPage() {
       className="min-h-screen px-4 md:px-8 py-8 space-y-6 max-w-6xl mx-auto"
       style={{ overflowAnchor: "none" as any }}
     >
-      {/* GLOBAL dark dropdown fix */}
-      <DarkSelectStyles />
-
+      {/* Header */}
       <header className="flex items-center justify-between">
         <div>
-          <h1 className="font-evanescent st-title-gradient text-4xl sm:text-5xl tracking-tight">World Details</h1>
-          <p className="text-zinc-300 text-sm">
-            World = non-negotiable rules + master catalogs. Era/Setting choose subsets; they can't invent new items.
-            {worldId ? ` (World ID: ${worldId})` : ' (No world ID provided)'}
+          <h1 className="font-evanescent st-title-gradient text-4xl sm:text-5xl tracking-tight">
+            World Details: {worldName}
+          </h1>
+          <p className="text-zinc-300 text-sm mt-2">
+            Configure the comprehensive foundation of your world according to the new outline
           </p>
         </div>
-        <Link
-          href="/worldbuilder/worlds"
-          scroll={false}
-          prefetch={false}
-          className="rounded-lg border border-white/15 bg-white/10 px-4 py-2 text-sm hover:bg-white/20"
-        >
-          ← Back to Worlds
-        </Link>
+        <SaveIndicator isSaving={isSaving} lastSaved={lastSaved} />
       </header>
 
-      {/* BASIC INFO */}
-      <Section
-        title="1) Basic Info — Player-Facing"
-        subtitle="World base currency is fixed at 1 Credit (no denominations here). Slug will be auto-derived from name later."
-      >
-        <div className="grid md:grid-cols-2 gap-4">
-          <Card title="World Name">
-            <Input
-              placeholder="2–60 chars (unique)"
-              value={worldName}
-              onChange={(e) => setWorldName(e.target.value.slice(0, 60))}
-            />
-            <p className="text-xs text-zinc-400 mt-2">Appears in UI, exports, and links.</p>
-          </Card>
+      {/* Navigation */}
+      <NavigationTabs 
+        currentSection={currentSection} 
+        onSectionChange={setCurrentSection} 
+      />
 
-          <Card title="Short Pitch">
-            <Textarea
-              rows={3}
-              maxLength={200}
-              placeholder="1–2 sentences, ≤200 chars"
-              value={pitch}
-              onChange={(e) => setPitch(e.target.value)}
-            />
-            <div className="text-xs text-zinc-400 mt-2">{pitch.length}/200</div>
-          </Card>
-        </div>
-
-        <Card title="Genre / Tone Tags">
-          <div className="flex flex-wrap gap-2 mb-3">
-            {presetGenreTags.map((t) => (
-              <button
-                key={t}
-                type="button"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => addChip(tags, setTags, t)}
-                className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-sm hover:bg-white/15"
-              >
-                + {t}
-              </button>
-            ))}
-          </div>
-          <div className="flex items-center gap-2 mb-3">
-            <Input
-              placeholder="Add custom tag"
-              value={customTag}
-              onChange={(e) => setCustomTag(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  addChip(tags, setTags, customTag);
-                  setCustomTag("");
-                }
-              }}
-            />
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => { addChip(tags, setTags, customTag); setCustomTag(""); }}
-              className="rounded-lg border border-amber-300/60 bg-amber-400/90 text-black px-4 py-2 text-sm hover:bg-amber-300"
-            >
-              Add
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {tags.map((t) => <Chip key={t} label={t} onRemove={() => removeChip(tags, setTags, t)} />)}
-          </div>
-        </Card>
-      </Section>
-
-      {/* ASTRAL BODIES */}
-      <Section title="2) Astral Bodies — Player summary; G.O.D details">
-        <div className="grid md:grid-cols-3 gap-4">
-          <Card title="Suns (count)">
-            <div className="flex items-center gap-2">
-              <button type="button" onMouseDown={(e)=>e.preventDefault()} onClick={() => setSunCount(Math.max(0, sunCount - 1))} className="px-3 py-1 rounded border border-white/15 bg-white/10 hover:bg-white/15">−</button>
-              <div className="min-w-10 text-center text-zinc-100">{sunCount}</div>
-              <button type="button" onMouseDown={(e)=>e.preventDefault()} onClick={() => setSunCount(Math.min(5, sunCount + 1))} className="px-3 py-1 rounded border border-white/15 bg-white/10 hover:bg-white/15">＋</button>
-            </div>
-            <p className="text-xs text-zinc-400 mt-2">0–5 (usually 1)</p>
-          </Card>
-
-          <div className="md:col-span-2">
-            <Card title="Moons">
-              <button
-                type="button"
-                onMouseDown={(e)=>e.preventDefault()}
-                onClick={() => setMoons([...moons, { id: uid(), name: "", cycle: "", omen: "" }])}
-                className="mb-3 rounded-lg border border-white/15 bg-white/10 px-3 py-1 hover:bg-white/15 text-sm"
-              >
-                + Add Moon
-              </button>
-              <div className="space-y-3">
-                {moons.map((m, i) => (
-                  <div key={m.id} className="grid md:grid-cols-4 gap-2">
-                    <Input placeholder="Name ≤40" value={m.name} onChange={(e) => setMoons(moons.map(x => x.id===m.id ? { ...m, name: e.target.value.slice(0,40) } : x))} />
-                    <NumberInput placeholder="Cycle (days) 1–999" min={1} max={999}
-                      value={m.cycle} onCommit={(val) => setMoons(moons.map(x => x.id===m.id ? { ...m, cycle: val } : x))} />
-                    <Input placeholder="Omen ≤120 (optional)" value={m.omen} onChange={(e) => setMoons(moons.map(x => x.id===m.id ? { ...m, omen: e.target.value.slice(0,120) } : x))} />
-                    <div className="flex items-center gap-2">
-                      <button type="button" onMouseDown={(e)=>e.preventDefault()} onClick={() => setMoons(moveIndex(moons, i, Math.max(0, i-1)))} className="px-3 py-1 rounded border border-white/15 bg-white/10 hover:bg-white/15">↑</button>
-                      <button type="button" onMouseDown={(e)=>e.preventDefault()} onClick={() => setMoons(moveIndex(moons, i, Math.min(moons.length-1, i+1)))} className="px-3 py-1 rounded border border-white/15 bg-white/10 hover:bg-white/15">↓</button>
-                      <button type="button" onMouseDown={(e)=>e.preventDefault()} onClick={() => setMoons(moons.filter(x => x.id !== m.id))} className="px-3 py-1 rounded border border-red-500/40 text-red-300 hover:bg-red-500/20">Delete</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </div>
-        </div>
-      </Section>
-
-      {/* TIME & CALENDAR */}
-      <Section title="3) Time & Calendar — Player-Facing" subtitle="Reorder months/weekdays with ↑/↓.">
-        <div className="grid md:grid-cols-2 gap-4">
-          <Card title="Global Clock">
-            <div className="grid grid-cols-2 gap-3">
-              <NumberInput placeholder="Length of Day (hours)" step="0.1" min={1} max={100}
-                value={dayHours} onCommit={(v)=>setDayHours(v)} />
-              <NumberInput placeholder="Length of Year (days)" min={30} max={1000}
-                value={yearDays} onCommit={(v)=>setYearDays(v)} />
-            </div>
-          </Card>
-
-          <Card title="Leap Rule (optional)">
-            <Textarea rows={3} placeholder="Example: Every 6 years add 1 day at year’s end."
-              value={leapRule} onChange={(e) => setLeapRule(e.target.value.slice(0, 280))} />
-          </Card>
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-4">
-          <Card title="Months (ordered list)">
-            <button type="button" onMouseDown={(e)=>e.preventDefault()} onClick={() => setMonths([...months, { id: uid(), name: "", days: "" }])}
-              className="mb-3 rounded-lg border border-white/15 bg-white/10 px-3 py-1 hover:bg-white/15 text-sm">+ Add Month</button>
-            <div className="space-y-2">
-              {months.map((m, i) => (
-                <div key={m.id} className="grid grid-cols-[1fr_140px_auto] gap-2">
-                  <Input placeholder="Name ≤30" value={m.name} onChange={(e) => setMonths(months.map(x => x.id===m.id ? { ...m, name: e.target.value.slice(0,30) } : x))} />
-                  <NumberInput placeholder="Days 1–60" min={1} max={60}
-                    value={m.days} onCommit={(val)=>setMonths(months.map(x=>x.id===m.id?{...m,days:val}:x))}/>
-                  <div className="flex items-center gap-2">
-                    <button type="button" onMouseDown={(e)=>e.preventDefault()} onClick={() => setMonths(moveIndex(months, i, Math.max(0, i - 1)))} className="px-3 py-1 rounded border border-white/15 bg-white/10 hover:bg-white/15">↑</button>
-                    <button type="button" onMouseDown={(e)=>e.preventDefault()} onClick={() => setMonths(moveIndex(months, i, Math.min(months.length - 1, i + 1)))} className="px-3 py-1 rounded border border-white/15 bg-white/10 hover:bg-white/15">↓</button>
-                    <button type="button" onMouseDown={(e)=>e.preventDefault()} onClick={() => setMonths(months.filter(x => x.id !== m.id))} className="px-3 py-1 rounded border border-red-500/40 text-red-300 hover:bg-red-500/20">Delete</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          <Card title="Weekdays (ordered list, 2–14)">
-            <div className="flex gap-2 mb-2">
-              <input
-                ref={eWeekRef}
-                placeholder="Add weekday name"
-                className="w-full rounded-lg bg-white/10 text-zinc-100 placeholder:text-zinc-400 border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400"
-                onKeyDown={(e) => {
-                  const t = e.target as HTMLInputElement;
-                  if (e.key === "Enter" && t.value.trim()) {
-                    e.preventDefault();
-                    setWeekdays([...weekdays, { id: uid(), value: t.value.trim().slice(0, 20) }]);
-                    t.value = "";
-                  }
-                }}
-              />
-              <button
-                type="button"
-                onMouseDown={(e)=>e.preventDefault()}
-                onClick={() => {
-                  const el = eWeekRef.current;
-                  const v = el?.value.trim();
-                  if (v) { setWeekdays([...weekdays, { id: uid(), value: v.slice(0,20) }]); if (el) el.value = ""; }
-                }}
-                className="rounded-lg border border-white/15 bg-white/10 px-3 py-1 hover:bg-white/15 text-sm"
-              >
-                Add
-              </button>
-            </div>
-            <div className="space-y-2">
-              {weekdays.map((w, i) => (
-                <div key={w.id} className="flex items-center gap-2">
-                  <span className="w-8 text-xs text-zinc-400">{i + 1}.</span>
-                  <span className="flex-1 text-zinc-100">{w.value}</span>
-                  <button type="button" onMouseDown={(e)=>e.preventDefault()} onClick={() => setWeekdays(moveIndex(weekdays, i, Math.max(0, i - 1)))} className="px-3 py-1 rounded border border-white/15 bg-white/10 hover:bg-white/15">↑</button>
-                  <button type="button" onMouseDown={(e)=>e.preventDefault()} onClick={() => setWeekdays(moveIndex(weekdays, i, Math.min(weekdays.length - 1, i + 1)))} className="px-3 py-1 rounded border border-white/15 bg-white/10 hover:bg-white/15">↓</button>
-                  <button type="button" onMouseDown={(e)=>e.preventDefault()} onClick={() => setWeekdays(weekdays.filter(x => x.id !== w.id))} className="px-3 py-1 rounded border border-red-500/40 text-red-300 hover:bg-red-500/20">Delete</button>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </div>
-
-        <Card title="Preview Calendar (UI-only stub)">
-          <p className="text-sm text-zinc-300">A future preview widget can render a sample month/week once we lock data.</p>
-        </Card>
-      </Section>
-
-      {/* PLANET PROFILE */}
-      <Section title="4) Planet Profile — Player summary; details collapsed">
-        <div className="grid md:grid-cols-3 gap-4">
-          <Card title="Type">
-            <BetterSelect value={planetType} onChange={(e) => setPlanetType(e.target.value)}>
-              {["Terrestrial","Oceanic","Tidally Locked","Ringworld","Custom"].map((t) => <option key={t} value={t}>{t}</option>)}
-            </BetterSelect>
-            {planetType === "Custom" && <Input placeholder="Custom note" value={sizeClass} onChange={(e) => setSizeClass(e.target.value)} className="mt-2" />}
-          </Card>
-
-          <Card title="Size / Class">
-            <Input placeholder='e.g., "Earth-like", "Radius ~6,400 km"' value={sizeClass} onChange={(e) => setSizeClass(e.target.value)} />
-          </Card>
-
-          <Card title="Gravity vs Earth (0.1–5.0)">
-            <NumberInput step="0.1" min={0.1} max={5}
-              value={gravity} onCommit={(v)=>setGravity(v)} />
-          </Card>
-
-          <Card title="Water Coverage % (0–100)">
-            <NumberInput min={0} max={100}
-              value={waterPct} onCommit={(v)=>setWaterPct(v)} />
-          </Card>
-
-          <Card title="Climate Bands">
-            <TagEditor list={climates} setList={setClimates} placeholder="Add climate band (e.g., Temperate)"/>
-          </Card>
-
-          <Card title="Tectonic Activity">
-            <BetterSelect value={tectonics} onChange={(e) => setTectonics(e.target.value)}>
-              {["None","Low","Medium","High"].map((t) => <option key={t}>{t}</option>)}
-            </BetterSelect>
-          </Card>
-        </div>
-      </Section>
-
-      {/* MAGIC MODEL */}
-      <Section title="5) Magic Model (Global Rules) — Player summary + G.O.D rules">
-        <Card title="Allowed Systems (master list)">
-          <CheckboxGrid
-            options={["Spellcraft","Talisman-making","Faith-based miracles","Psionics","Bardic arts","Custom(+name)"]}
-            values={magicSystems}
-            onToggle={(v) => {
-              setMagicSystems(magicSystems.includes(v) ? magicSystems.filter(x => x !== v) : [...magicSystems, v]);
-            }}
-          />
-        </Card>
-
-        {/* NEW: custom names when Custom(+name) is checked */}
-        {magicSystems.includes("Custom(+name)") && (
-          <Card title="Custom Systems">
-            <TagEditor
-              list={customMagic}
-              setList={setCustomMagic}
-              placeholder="Add custom magic system (e.g., Rune-Weaving)"
-            />
-            <p className="text-xs text-zinc-400 mt-2">
-              These will be combined with checked built-ins on save/export.
-            </p>
-          </Card>
+      {/* Content */}
+      <div className="rounded-2xl border border-white/15 bg-white/10 backdrop-blur-sm shadow-sm p-6">
+        {currentSection === "basic" && (
+          <BasicInfoForm data={data.basic} onUpdate={updateBasicInfo} />
         )}
-
-        <div className="grid md:grid-cols-2 gap-4 mt-4">
-          <Card title="Source Statement (≤240)">
-            <Textarea rows={3} maxLength={240} value={sourceStatement} onChange={(e) => setSourceStatement(e.target.value)} />
-            <div className="text-xs text-zinc-400 mt-1">{sourceStatement.length}/240</div>
-          </Card>
-
-          <Card title="Cost / Corruption Level">
-            <BetterSelect value={corruption} onChange={(e) => setCorruption(e.target.value)}>
-              {["None","Mild","Moderate","Severe","Custom"].map((t) => <option key={t}>{t}</option>)}
-            </BetterSelect>
-            {corruption === "Custom" && <Input placeholder="Custom note" className="mt-2" />}
-          </Card>
-        </div>
-
-        <Card title="Unbreakable Rules (0–10 bullets)">
-          <div className="flex gap-2 mb-2">
-            <Input placeholder="Add rule ≤120 chars" value={newRule}
-              onChange={(e) => setNewRule(e.target.value.slice(0,120))}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && newRule.trim()) {
-                  e.preventDefault();
-                  setUnbreakables([...unbreakables, { id: uid(), value: newRule.trim() }]);
-                  setNewRule("");
-                }
-              }} />
-            <button type="button" onMouseDown={(e)=>e.preventDefault()} onClick={() => { if (newRule.trim()) { setUnbreakables([...unbreakables, { id: uid(), value: newRule.trim() }]); setNewRule(""); } }}
-              className="rounded-lg border border-white/15 bg-white/10 px-3 py-1 hover:bg-white/15 text-sm">Add</button>
-          </div>
-          <ul className="space-y-1 list-disc pl-5">
-            {unbreakables.map((r) => (
-              <li key={r.id} className="flex items-center gap-2">
-                <span className="flex-1 text-zinc-100">{r.value}</span>
-                <button type="button" onMouseDown={(e)=>e.preventDefault()} onClick={() => setUnbreakables(unbreakables.filter(x => x.id !== r.id))}
-                  className="px-2 py-0.5 rounded border border-red-500/40 text-red-300 text-xs hover:bg-red-500/20">Delete</button>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      </Section>
-
-      {/* TECH WINDOW */}
-      <Section title="6) Technology Window (Global Bounds) — Player-Facing">
-        <div className="grid md:grid-cols-2 gap-4">
-          <Card title="Overall Tech Window (From → To)">
-            <div className="grid grid-cols-2 gap-2">
-              <BetterSelect value={techFrom} onChange={(e) => setTechFrom(e.target.value)}>
-                {techLevels.map(l => <option key={l}>{l}</option>)}
-              </BetterSelect>
-              <BetterSelect value={techTo} onChange={(e) => setTechTo(e.target.value)}>
-                {techLevels.map(l => <option key={l}>{l}</option>)}
-              </BetterSelect>
-            </div>
-            {techLevels.indexOf(techFrom) > techLevels.indexOf(techTo) && (
-              <p className="text-xs text-red-300 mt-2">From must be ≤ To</p>
-            )}
-          </Card>
-
-          <Card title='Ban List (“Does Not Exist”)'>
-            <TagEditorObj list={bans} setList={setBans} placeholder="Add ban (e.g., Time Travel, FTL, True AI, Guns)"/>
-          </Card>
-        </div>
-      </Section>
-
-      {/* TONE & CANON */}
-      <Section title="7) Tone & Canon — Player-Facing">
-        <Card title="Tone Flags">
-          <CheckboxGrid
-            options={toneFlagsAll}
-            values={toneFlags}
-            onToggle={(v) => {
-              setToneFlags(toneFlags.includes(v) ? toneFlags.filter(x => x !== v) : [...toneFlags, v]);
-            }}
-          />
-        </Card>
-      </Section>
-
-      {/* COSMOLOGY */}
-      <Section title="8) Cosmology & Realms — G.O.D (with player-safe summary toggle)">
-        <div className="flex items-center gap-3 mb-3">
-          <Toggle checked={playerSafeSummaryOn} onChange={setPlayerSafeSummaryOn} label="Export player-safe summary" />
-        </div>
-        <Card title="Realm Map">
-          <button type="button" onMouseDown={(e)=>e.preventDefault()} onClick={() => setRealms([...realms, { id: uid(), name:"", type:"", traits:"", travel:"", bleed:"" }])}
-            className="mb-3 rounded-lg border border-white/15 bg-white/10 px-3 py-1 hover:bg-white/15 text-sm">+ Add Realm</button>
-          <div className="space-y-3">
-            {realms.map((r, i) => (
-              <div key={r.id} className="grid md:grid-cols-5 gap-2">
-                <Input placeholder="Name" value={r.name} onChange={(e)=>setRealms(realms.map(x=>x.id===r.id?{...r,name:e.target.value.slice(0,40)}:x))}/>
-                <Input placeholder="Type (e.g., Astral Sea)" value={r.type} onChange={(e)=>setRealms(realms.map(x=>x.id===r.id?{...r,type:e.target.value.slice(0,40)}:x))}/>
-                <Input placeholder="Traits (short)" value={r.traits} onChange={(e)=>setRealms(realms.map(x=>x.id===r.id?{...r,traits:e.target.value.slice(0,80)}:x))}/>
-                <Input placeholder="Travel rules" value={r.travel} onChange={(e)=>setRealms(realms.map(x=>x.id===r.id?{...r,travel:e.target.value.slice(0,80)}:x))}/>
-                <Input placeholder="Bleed-through" value={r.bleed} onChange={(e)=>setRealms(realms.map(x=>x.id===r.id?{...r,bleed:e.target.value.slice(0,80)}:x))}/>
-                <div className="md:col-span-5 flex gap-2 justify-end">
-                  <button type="button" onMouseDown={(e)=>e.preventDefault()} onClick={() => setRealms(moveIndex(realms, i, Math.max(0, i-1)))} className="px-3 py-1 rounded border border-white/15 bg-white/10 hover:bg-white/15">↑</button>
-                  <button type="button" onMouseDown={(e)=>e.preventDefault()} onClick={() => setRealms(moveIndex(realms, i, Math.min(realms.length-1, i+1)))} className="px-3 py-1 rounded border border-white/15 bg-white/10 hover:bg-white/15">↓</button>
-                  <button type="button" onMouseDown={(e)=>e.preventDefault()} onClick={() => setRealms(realms.filter(x => x.id !== r.id))} className="px-3 py-1 rounded border border-red-500/40 text-red-300 hover:bg-red-500/20">Delete</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </Section>
-
-      {/* MASTER CATALOGS */}
-      <Section title="9) Master Catalogs — Choose from existing DB (no new adds here)">
-        <div className="grid md:grid-cols-2 gap-4">
-          <Card title="Races (choose from DB)">
-            <MultiPicker
-              source={allRaces}               // Use all races from database
-              values={races}
-              onChange={setRaces}
-              placeholder="Search races…"
-              emptyLabel="No races match"
-            />
-          </Card>
-          <Card title="Creatures (choose from DB)">
-            <MultiPicker
-              source={allCreatures}           // Use all creatures from database
-              values={creatures}
-              onChange={setCreatures}
-              placeholder="Search creatures…"
-              emptyLabel="No creatures match"
-            />
-          </Card>
-          <Card title="Languages (free list)">
-            <TagEditor list={languages} setList={setLanguages} placeholder="Add language"/>
-          </Card>
-          <Card title="Deities (free list)">
-            <TagEditor list={deities} setList={setDeities} placeholder="Add deity"/>
-          </Card>
-          <Card title="Factions (free list)">
-            <TagEditor list={factions} setList={setFactions} placeholder="Add faction"/>
-          </Card>
-        </div>
-      </Section>
-
-      {/* FOOTER ACTIONS */}
-      <div className="sticky bottom-4 flex gap-3 justify-end">
-        <button 
-          type="button" 
-          onClick={saveWorldData}
-          className="rounded-lg border border-white/15 bg-white/10 px-4 py-2 hover:bg-white/15"
-        >
-          Save
-        </button>
-        <button type="button" className="rounded-lg border border-amber-300/60 bg-amber-400/90 text-black px-4 py-2 hover:bg-amber-300">Export Player Handout (stub)</button>
+        {currentSection === "astral" && (
+          <AstralBodiesForm data={data.astral} onUpdate={updateAstralBodies} />
+        )}
+        {currentSection === "time" && (
+          <TimeCalendarForm data={data.time} onUpdate={updateTimeCalendar} />
+        )}
+        {currentSection === "planet" && (
+          <PlanetProfileForm data={data.planet} onUpdate={updatePlanetProfile} />
+        )}
+        {currentSection === "magic" && (
+          <MagicModelForm data={data.magic} onUpdate={updateMagicModel} />
+        )}
+        {currentSection === "geography" && (
+          <GeographyFoundationForm data={data.geography} onUpdate={updateGeographyFoundation} />
+        )}
+        {currentSection === "technology" && (
+          <TechnologyWindowForm data={data.technology} onUpdate={updateTechnologyWindow} />
+        )}
+        {currentSection === "tone" && (
+          <ToneCanonForm data={data.tone} onUpdate={updateToneCanon} />
+        )}
+        {currentSection === "cosmology" && (
+          <CosmologyRealmsForm data={data.cosmology} onUpdate={updateCosmologyRealms} />
+        )}
+        {currentSection === "catalogs" && (
+          <MasterCatalogsForm data={data.catalogs} onUpdate={updateMasterCatalogs} />
+        )}
       </div>
     </form>
-  );
-}
-
-/* ===== MultiPicker: searchable, chip-based from a fixed source list ===== */
-function MultiPicker({
-  source,
-  values,
-  onChange,
-  placeholder,
-  emptyLabel = "No matches",
-}: {
-  source: string[];
-  values: string[];
-  onChange: (v: string[]) => void;
-  placeholder?: string;
-  emptyLabel?: string;
-}) {
-  const [q, setQ] = useState("");
-  const [open, setOpen] = useState(false);
-  const filtered = source
-    .filter(s => s.toLowerCase().includes(q.toLowerCase()))
-    .filter(s => !values.includes(s))
-    .slice(0, 50);
-
-  return (
-    <div className="relative">
-      <div className="flex flex-wrap gap-2 mb-2">
-        {values.map(v => (
-          <span key={v} className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/15 px-3 py-1 text-sm text-zinc-100">
-            {v}
-            <button type="button" onMouseDown={(e)=>e.preventDefault()} onClick={() => onChange(values.filter(x => x !== v))} className="opacity-80 hover:opacity-100">✕</button>
-          </span>
-        ))}
-      </div>
-
-      <input
-        value={q}
-        onChange={(e)=>{ setQ(e.target.value); setOpen(true); }}
-        onFocus={()=>setOpen(true)}
-        onBlur={() => setTimeout(()=>setOpen(false), 120)}
-        placeholder={placeholder}
-        className="w-full rounded-lg bg-white/10 text-zinc-100 placeholder:text-zinc-400 border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400"
-      />
-
-      {open && (
-        <div className="absolute z-50 mt-1 w-full max-h-56 overflow-auto rounded-lg border border-white/15 bg-[#0b0b0f] shadow-lg">
-          {filtered.length === 0 ? (
-            <div className="px-3 py-2 text-sm text-zinc-400">{emptyLabel}</div>
-          ) : filtered.map(item => (
-            <button
-              key={item}
-              type="button"
-              onMouseDown={(e)=>e.preventDefault()}
-              onClick={() => { onChange([...values, item]); setQ(""); }}
-              className="block w-full text-left px-3 py-2 text-sm hover:bg-white/10 text-zinc-100"
-            >
-              {item}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ===== Global style to force readable dark dropdowns (native <select>) ===== */
-function DarkSelectStyles() {
-  return (
-    <style jsx global>{`
-      select {
-        color: #e5e7eb;        /* zinc-200 */
-        background-color: #0b0b0f; /* deep dark */
-      }
-      select:focus {
-        outline: none;
-      }
-      /* Options popup colors (most modern browsers honor this) */
-      select option {
-        color: #e5e7eb;
-        background-color: #0b0b0f;
-      }
-      /* Increase stacking so the popup isn't hidden by sticky footers */
-      select { position: relative; z-index: 10; }
-    `}</style>
-  );
-}
-
-/** ————— Small reusables ————— */
-
-function CheckboxGrid({ options, values, onToggle }: { options: string[]; values: string[]; onToggle: (v: string) => void }) {
-  return (
-    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
-      {options.map((o) => (
-        <label key={o} className="flex items-center gap-2 rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-zinc-100">
-          <input type="checkbox" checked={values.includes(o)} onChange={() => onToggle(o)} />
-          <span>{o}</span>
-        </label>
-      ))}
-    </div>
-  );
-}
-
-/* ===== Chip (used by tags) ===== */
-function Chip({ label, onRemove }: { label: string; onRemove?: () => void }) {
-  return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/15 px-3 py-1 text-sm text-zinc-100">
-      {label}
-      {onRemove && (
-        <button
-          type="button"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={onRemove}
-          className="opacity-80 hover:opacity-100"
-          aria-label={`Remove ${label}`}
-        >
-          ✕
-        </button>
-      )}
-    </span>
-  );
-}
-
-/* ===== Toggle (used in Cosmology header) ===== */
-function Toggle({
-  checked,
-  onChange,
-  label,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  label: string;
-}) {
-  return (
-    <label className="flex items-center gap-2 cursor-pointer text-zinc-100 select-none">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="h-4 w-4"
-      />
-      <span>{label}</span>
-    </label>
-  );
-}
-
-function TagEditor({ list, setList, placeholder }: { list: string[]; setList: (v: string[]) => void; placeholder: string }) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const add = (v: string) => {
-    const x = v.trim();
-    if (!x || list.includes(x)) return;
-    setList([...list, x]);
-  };
-  return (
-    <div>
-      <div className="flex gap-2 mb-2">
-        <input
-          ref={inputRef}
-          placeholder={placeholder}
-          className="w-full rounded-lg bg-white/10 text-zinc-100 placeholder:text-zinc-400 border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400"
-          onKeyDown={(e) => {
-            const t = e.target as HTMLInputElement;
-            if (e.key === "Enter") { e.preventDefault(); add(t.value); t.value = ""; }
-          }}
-        />
-        <button
-          type="button"
-          onMouseDown={(e)=>e.preventDefault()}
-          onClick={() => {
-            const el = inputRef.current;
-            if (el && el.value.trim()) { add(el.value); el.value = ""; }
-          }}
-          className="rounded-lg border border-white/15 bg-white/10 px-3 py-1 hover:bg-white/15 text-sm"
-        >
-          Add
-        </button>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {list.map((v) => (
-          <span key={v} className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/15 px-3 py-1 text-sm text-zinc-100">
-            {v}
-            <button type="button" onMouseDown={(e)=>e.preventDefault()} onClick={() => setList(list.filter((x) => x !== v))} className="opacity-80 hover:opacity-100">✕</button>
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// Tag editor for Named[] (objects with id/value)
-function TagEditorObj({ list, setList, placeholder }: { list: {id: UID; value: string}[]; setList: (v: {id: UID; value: string}[]) => void; placeholder: string }) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const add = (v: string) => {
-    const x = v.trim();
-    if (!x) return;
-    if (list.some(item => item.value === x)) return;
-    setList([...list, { id: uid(), value: x }]);
-  };
-  return (
-    <div>
-      <div className="flex gap-2 mb-2">
-        <input
-          ref={inputRef}
-          placeholder={placeholder}
-          className="w-full rounded-lg bg-white/10 text-zinc-100 placeholder:text-zinc-400 border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400"
-          onKeyDown={(e) => {
-            const t = e.target as HTMLInputElement;
-            if (e.key === "Enter") { e.preventDefault(); add(t.value); t.value = ""; }
-          }}
-        />
-        <button
-          type="button"
-          onMouseDown={(e)=>e.preventDefault()}
-          onClick={() => {
-            const el = inputRef.current;
-            if (el && el.value.trim()) { add(el.value); el.value = ""; }
-          }}
-          className="rounded-lg border border-white/15 bg-white/10 px-3 py-1 hover:bg-white/15 text-sm"
-        >
-          Add
-        </button>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {list.map((it) => (
-          <span key={it.id} className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/15 px-3 py-1 text-sm text-zinc-100">
-            {it.value}
-            <button type="button" onMouseDown={(e)=>e.preventDefault()} onClick={() => setList(list.filter((x) => x.id !== it.id))} className="opacity-80 hover:opacity-100">✕</button>
-          </span>
-        ))}
-      </div>
-    </div>
   );
 }

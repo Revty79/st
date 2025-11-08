@@ -1,9 +1,15 @@
-// src/app/worldbuilder/worlds/page.tsx
+﻿// src/app/worldbuilder/worlds/page.tsx
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { TimelineV2 } from "../../../components/TimelineV2";
+import WorldBuilderNavigation from "@/components/worldbuilder/WorldBuilderNavigation";
+import NewWorldForm from "@/components/worldbuilder/NewWorldForm";
+import EditWorldForm from "@/components/worldbuilder/EditWorldForm";
+import EraForm from "@/components/worldbuilder/EraForm";
+import MarkerForm from "@/components/worldbuilder/MarkerForm";
+import SettingForm from "@/components/worldbuilder/SettingForm";
 
 /* ---------- server API shapes (snake_case from /api/world) ---------- */
 type ApiWorld = {
@@ -118,7 +124,7 @@ const intOrNull = (s: string): number | null =>
   s === "" ? null : Number.isFinite(Number(s)) ? Number(s) : null;
 
 /* ---------- API helper ---------- */
-const API = "/api/world"; // ✅ singular path to match your route.ts
+const API = "/api/world"; // âœ… singular path to match your route.ts
 
 async function assertJSON(res: Response) {
   const ct = res.headers.get("content-type") || "";
@@ -157,43 +163,6 @@ async function apiPost<T>(body: any): Promise<T> {
   const json = await res.json();
   if (!json.ok) throw new Error(json.error || "Operation failed");
   return json.data as T;
-}
-
-/* ---------- local nav ---------- */
-function WBNav({
-  current = "worlds",
-}: {
-  current?: "worlds" | "creatures" | "skillsets" | "races" | "inventory";
-}) {
-  const items = [
-    { href: "/worldbuilder/worlds", key: "worlds", label: "Worlds" },
-    { href: "/worldbuilder/creatures", key: "creatures", label: "Creatures" },
-    { href: "/worldbuilder/skillsets", key: "skillsets", label: "Skillsets" },
-    { href: "/worldbuilder/races", key: "races", label: "Races" },
-    { href: "/worldbuilder/inventory", key: "inventory", label: "Inventory" },
-  ] as const;
-
-  return (
-    <nav className="flex flex-wrap gap-2">
-      {items.map((it) => {
-        const active = current === it.key;
-        return (
-          <Link
-            key={it.key}
-            href={it.href}
-            className={[
-              "rounded-xl px-3 py-1.5 text-sm border",
-              active
-                ? "border-violet-400/40 text-violet-200 bg-violet-400/10"
-                : "border-white/15 text-zinc-200 hover:bg-white/10",
-            ].join(" ")}
-          >
-            {it.label}
-          </Link>
-        );
-      })}
-    </nav>
-  );
 }
 
 /* ---------- main component ---------- */
@@ -481,7 +450,7 @@ export default function WorldsPage() {
               }
             }}
           >
-            <option value="">{loading ? "(loading…)" : worldsSorted.length ? "(Select a world…)" : "(no worlds)"}</option>
+            <option value="">{loading ? "(loadingâ€¦)" : worldsSorted.length ? "(Select a worldâ€¦)" : "(no worlds)"}</option>
             {worldsSorted.map((w) => (
               <option key={w.id} value={w.id}>
                 {w.name}
@@ -540,7 +509,7 @@ export default function WorldsPage() {
             className="mt-2 block w-full text-center rounded-xl border border-amber-300/40 px-3 py-1.5 text-sm text-amber-200/90 hover:bg-amber-300/10"
             href="/worldbuilder"
           >
-            ← Back to World Builder
+            â† Back to World Builder
           </Link>
         </div>
       </div>
@@ -552,7 +521,7 @@ export default function WorldsPage() {
     if (!active) {
       return (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur text-sm text-zinc-400">
-          {loading ? "Loading…" : "Select or create a world on the left."}
+          {loading ? "Loadingâ€¦" : "Select or create a world on the left."}
         </div>
       );
     }
@@ -641,11 +610,11 @@ export default function WorldsPage() {
               href="/worldbuilder"
               className="rounded-xl border border-white/15 px-3 py-1.5 text-sm text-zinc-200 hover:bg-white/10"
             >
-              ← World Builder
+              â† World Builder
             </Link>
             <h1 className="font-evanescent st-title-gradient text-4xl sm:text-5xl tracking-tight">Worlds</h1>
           </div>
-          <WBNav current="worlds" />
+          <WorldBuilderNavigation current="worlds" />
         </div>
       </header>
 
@@ -668,13 +637,13 @@ export default function WorldsPage() {
           >
             <div className="flex items-center justify-between mb-3">
               <div className="text-sm font-semibold text-zinc-200">
-                Timeline Viewer — {active.name}
+                Timeline Viewer â€” {active.name}
               </div>
               <button
                 className="rounded-lg border border-white/15 px-3 py-1 text-sm hover:bg-white/10"
                 onClick={() => setShowViewer(false)}
               >
-                ✕ Close
+                âœ• Close
               </button>
             </div>
             <div className="rounded-xl border border-white/10 bg-black/40 p-3 overflow-hidden">
@@ -805,7 +774,7 @@ function OriginalTimelineSection({
                                     {s.endYear ?? ""})
                                   </>
                                 )}
-                                {s.description ? ` — ${s.description}` : ""}
+                                {s.description ? ` â€” ${s.description}` : ""}
                               </div>
                               <button
                                 className="rounded border border-white/15 px-2 py-0.5 hover:bg-white/10"
@@ -835,7 +804,7 @@ function OriginalTimelineSection({
                               <div className="flex-1">
                                 {m.name}
                                 {m.year != null ? ` (Year ${m.year})` : ""}
-                                {m.description ? ` — ${m.description}` : ""}
+                                {m.description ? ` â€” ${m.description}` : ""}
                               </div>
                               <button
                                 className="rounded border border-white/15 px-2 py-0.5 hover:bg-white/10"
@@ -872,7 +841,7 @@ function OriginalTimelineSection({
                         className="rounded border border-rose-400/40 px-2 py-1 text-xs text-rose-200 hover:bg-rose-400/10"
                         onClick={() => deleteEra(era.id)}
                       >
-                        🗑 Delete Era
+                        ðŸ—‘ Delete Era
                       </button>
                     </div>
                   </div>
@@ -891,7 +860,7 @@ function OriginalTimelineSection({
                           <div className="flex-1">
                             {m.name}
                             {m.year != null ? ` (Year ${m.year})` : ""}
-                            {m.description ? ` — ${m.description}` : ""}
+                            {m.description ? ` â€” ${m.description}` : ""}
                           </div>
                           <button
                             className="rounded border border-white/15 px-2 py-0.5 hover:bg-white/10"
@@ -951,7 +920,7 @@ function OriginalTimelineSection({
                       {(era.startYear != null || era.endYear != null) && (
                         <>
                           {" "}
-                          — Years {era.startYear ?? ""}
+                          â€” Years {era.startYear ?? ""}
                           {(era.startYear != null || era.endYear != null) ? " - " : ""}
                           {era.endYear ?? ""}
                         </>
@@ -964,14 +933,14 @@ function OriginalTimelineSection({
                       title="Move up"
                       onClick={() => moveEra(era.id, -1)}
                     >
-                      ↑
+                      â†‘
                     </button>
                     <button
                       className="rounded border border-white/15 px-2 py-1 text-xs hover:bg-white/10"
                       title="Move down"
                       onClick={() => moveEra(era.id, +1)}
                     >
-                      ↓
+                      â†“
                     </button>
                     <button
                       className="rounded border border-white/15 px-2 py-1 text-xs hover:bg-white/10"
@@ -1001,7 +970,7 @@ function OriginalTimelineSection({
                     .map((s) => (
                       <div key={s.id} className="flex items-center gap-2 text-sm text-violet-200">
                         <div className="flex-1">
-                          • {s.name}
+                          â€¢ {s.name}
                           {(s.startYear != null || s.endYear != null) && (
                             <>
                               {" "}
@@ -1010,7 +979,7 @@ function OriginalTimelineSection({
                               {s.endYear ?? ""})
                             </>
                           )}
-                          {s.description ? ` — ${s.description}` : ""}
+                          {s.description ? ` â€” ${s.description}` : ""}
                         </div>
                         <button
                           className="rounded border border-white/15 px-2 py-1 text-xs hover:bg-white/10"
@@ -1120,7 +1089,7 @@ function OriginalTimelineSection({
                   <textarea
                     rows={3}
                     className="mt-2 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm"
-                    placeholder="Event description…"
+                    placeholder="Event descriptionâ€¦"
                     value={m.description ?? ""}
                     onChange={(e) => updateMarker(m.id, { description: e.target.value })}
                   />
@@ -1132,301 +1101,5 @@ function OriginalTimelineSection({
         )}
       </section>
     </>
-  );
-}
-
-/* ---------- small subforms ---------- */
-function NewWorldForm({
-  onCancel,
-  onCreate,
-}: {
-  onCancel: () => void;
-  onCreate: (name: string, desc: string) => void;
-}) {
-  const [name, setName] = useState("");
-  const [desc, setDesc] = useState("");
-  return (
-    <div className="mt-4 rounded-xl border border-white/10 bg-black/30 p-3">
-      <div className="text-sm font-semibold text-zinc-100 mb-2">Create World</div>
-      <label className="block mb-2">
-        <div className="text-xs text-zinc-300 mb-1">Name</div>
-        <input
-          className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-      </label>
-      <label className="block">
-        <div className="text-xs text-zinc-300 mb-1">Description</div>
-        <textarea
-          rows={4}
-          className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm"
-          value={desc}
-          onChange={(e) => setDesc(e.target.value)}
-        />
-      </label>
-      <div className="mt-3 flex gap-2">
-        <button
-          className="rounded-xl border border-white/15 px-3 py-1.5 text-sm hover:bg-white/10"
-          onClick={onCancel}
-        >
-          Cancel
-        </button>
-        <button
-          className="rounded-xl border border-emerald-400/40 px-3 py-1.5 text-sm text-emerald-200 hover:bg-emerald-400/10"
-          onClick={() => onCreate(name, desc)}
-        >
-          Create
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function EditWorldForm({
-  initial,
-  onCancel,
-  onUpdate,
-}: {
-  initial: { name: string; description: string };
-  onCancel: () => void;
-  onUpdate: (n: string, d: string) => void;
-}) {
-  const [name, setName] = useState(initial.name);
-  const [desc, setDesc] = useState(initial.description);
-  return (
-    <div className="mt-4 rounded-xl border border-white/10 bg-black/30 p-3">
-      <div className="text-sm font-semibold text-zinc-100 mb-2">Edit World</div>
-      <label className="block mb-2">
-        <div className="text-xs text-zinc-300 mb-1">Name</div>
-        <input
-          className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-      </label>
-      <label className="block">
-        <div className="text-xs text-zinc-300 mb-1">Description</div>
-        <textarea
-          rows={4}
-          className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm"
-          value={desc}
-          onChange={(e) => setDesc(e.target.value)}
-        />
-      </label>
-      <div className="mt-3 flex gap-2">
-        <button
-          className="rounded-xl border border-white/15 px-3 py-1.5 text-sm hover:bg-white/10"
-          onClick={onCancel}
-        >
-          Cancel
-        </button>
-        <button
-          className="rounded-xl border border-emerald-400/40 px-3 py-1.5 text-sm text-emerald-200 hover:bg-emerald-400/10"
-          onClick={() => onUpdate(name, desc)}
-        >
-          Update
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function EraForm({
-  onCancel,
-  onCreate,
-}: {
-  onCancel: () => void;
-  onCreate: (name: string, desc: string, start: number | null, end: number | null, color: string) => void;
-}) {
-  const [name, setName] = useState("");
-  const [desc, setDesc] = useState("");
-  const [start, setStart] = useState<string>("");
-  const [end, setEnd] = useState<string>("");
-  const [color, setColor] = useState("#8b5cf6");
-  return (
-    <div className="rounded-xl border border-white/10 bg-black/30 p-3">
-      <div className="text-sm font-semibold text-zinc-100 mb-2">Create Era</div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-        <input
-          className="rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm"
-          placeholder="Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <input
-          type="color"
-          className="rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm"
-          value={color}
-          onChange={(e) => setColor(e.target.value)}
-        />
-      </div>
-      <textarea
-        rows={3}
-        className="mt-2 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm"
-        placeholder="Description…"
-        value={desc}
-        onChange={(e) => setDesc(e.target.value)}
-      />
-      <div className="mt-2 grid grid-cols-2 gap-2">
-        <input
-          type="number"
-          className="rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm"
-          placeholder="Start (optional)"
-          value={start}
-          onChange={(e) => setStart(e.target.value)}
-        />
-        <input
-          type="number"
-          className="rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm"
-          placeholder="End (optional)"
-          value={end}
-          onChange={(e) => setEnd(e.target.value)}
-        />
-      </div>
-      <div className="mt-3 flex gap-2">
-        <button
-          className="rounded-xl border border-white/15 px-3 py-1.5 text-sm hover:bg-white/10"
-          onClick={onCancel}
-        >
-          Cancel
-        </button>
-        <button
-          className="rounded-xl border border-emerald-400/40 px-3 py-1.5 text-sm text-emerald-200 hover:bg-emerald-400/10"
-          onClick={() => onCreate(name, desc, intOrNull(start), intOrNull(end), color)}
-        >
-          Create Era
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function MarkerForm({
-  eras,
-  onCancel,
-  onCreate,
-}: {
-  eras: Era[];
-  onCancel: () => void;
-  onCreate: (name: string, desc: string, year: number | null, eraId: number | null) => void;
-}) {
-  const [name, setName] = useState("");
-  const [desc, setDesc] = useState("");
-  const [year, setYear] = useState<string>("");
-  const [eraId, setEraId] = useState<string>("");
-  return (
-    <div className="rounded-xl border border-white/10 bg-black/30 p-3">
-      <div className="text-sm font-semibold text-zinc-100 mb-2">Create Event Marker</div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-        <input
-          className="rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm"
-          placeholder="Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <input
-          type="number"
-          className="rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm"
-          placeholder="Year (optional)"
-          value={year}
-          onChange={(e) => setYear(e.target.value)}
-        />
-      </div>
-      <textarea
-        rows={3}
-        className="mt-2 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm"
-        placeholder="Description…"
-        value={desc}
-        onChange={(e) => setDesc(e.target.value)}
-      />
-      <select
-        className="mt-2 rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm"
-        value={eraId}
-        onChange={(e) => setEraId(e.target.value)}
-      >
-        <option value="">— Unassigned —</option>
-        {eras.map((e) => (
-          <option key={e.id} value={String(e.id)}>
-            {e.name}
-          </option>
-        ))}
-      </select>
-      <div className="mt-3 flex gap-2">
-        <button
-          className="rounded-xl border border-white/15 px-3 py-1.5 text-sm hover:bg-white/10"
-          onClick={onCancel}
-        >
-          Cancel
-        </button>
-        <button
-          className="rounded-xl border border-emerald-400/40 px-3 py-1.5 text-sm text-emerald-200 hover:bg-emerald-400/10"
-          onClick={() => onCreate(name, desc, intOrNull(year), eraId ? Number(eraId) : null)}
-        >
-          Create Event
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function SettingForm({
-  onCancel,
-  onCreate,
-}: {
-  onCancel: () => void;
-  onCreate: (name: string, desc: string, start: number | null, end: number | null) => void;
-}) {
-  const [name, setName] = useState("");
-  const [desc, setDesc] = useState("");
-  const [start, setStart] = useState<string>("");
-  const [end, setEnd] = useState<string>("");
-  return (
-    <div className="mt-2 rounded-xl border border-white/10 bg-black/25 p-3">
-      <div className="text-sm font-semibold text-zinc-100 mb-2">Create Setting</div>
-      <input
-        className="mb-2 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm"
-        placeholder="Name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-      />
-      <textarea
-        rows={3}
-        className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm"
-        placeholder="Description…"
-        value={desc}
-        onChange={(e) => setDesc(e.target.value)}
-      />
-      <div className="mt-2 grid grid-cols-2 gap-2">
-        <input
-          type="number"
-          className="rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm"
-          placeholder="Start (optional)"
-          value={start}
-          onChange={(e) => setStart(e.target.value)}
-        />
-        <input
-          type="number"
-          className="rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm"
-          placeholder="End (optional)"
-          value={end}
-          onChange={(e) => setEnd(e.target.value)}
-        />
-      </div>
-      <div className="mt-3 flex gap-2">
-        <button
-          className="rounded-xl border border-white/15 px-3 py-1.5 text-sm hover:bg-white/10"
-          onClick={onCancel}
-        >
-          Cancel
-        </button>
-        <button
-          className="rounded-xl border border-emerald-400/40 px-3 py-1.5 text-sm text-emerald-200 hover:bg-emerald-400/10"
-          onClick={() => onCreate(name, desc, intOrNull(start), intOrNull(end))}
-        >
-          Create Setting
-        </button>
-      </div>
-    </div>
   );
 }

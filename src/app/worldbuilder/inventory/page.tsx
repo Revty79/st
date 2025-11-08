@@ -3,6 +3,43 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
+/* ---------- local nav ---------- */
+function WBNav({
+  current = "inventory",
+}: {
+  current?: "worlds" | "creatures" | "skillsets" | "races" | "inventory";
+}) {
+  const items = [
+    { href: "/worldbuilder/worlds", key: "worlds", label: "Worlds" },
+    { href: "/worldbuilder/creatures", key: "creatures", label: "Creatures" },
+    { href: "/worldbuilder/skillsets", key: "skillsets", label: "Skillsets" },
+    { href: "/worldbuilder/races", key: "races", label: "Races" },
+    { href: "/worldbuilder/inventory", key: "inventory", label: "Inventory" },
+  ] as const;
+
+  return (
+    <nav className="flex flex-wrap gap-2">
+      {items.map((it) => {
+        const active = current === it.key;
+        return (
+          <Link
+            key={it.key}
+            href={it.href}
+            className={[
+              "rounded-xl px-3 py-1.5 text-sm border",
+              active
+                ? "border-violet-400/40 text-violet-200 bg-violet-400/10"
+                : "border-white/15 text-zinc-200 hover:bg-white/10",
+            ].join(" ")}
+          >
+            {it.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
 /** ---------- types ---------- */
 type TabKey = "items" | "weapons" | "armor" | "preview";
 
@@ -56,7 +93,6 @@ type AnyRow = ItemRow | WeaponRow | ArmorRow;
 type RowKey = Extract<keyof ItemRow | keyof WeaponRow | keyof ArmorRow, string>;
 
 /** ---------- style tokens ---------- */
-const ACCENT = "text-amber-300";
 const BTN = "rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm hover:bg-white/10 transition";
 const BTN_PRIMARY =
   "rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-sm text-amber-200 hover:bg-amber-400/20 hover:border-amber-400/40 transition disabled:opacity-50";
@@ -327,23 +363,27 @@ export default function Page() {
 
   return (
     <main className="min-h-screen px-6 py-10">
-      {/* breadcrumb */}
-      <div className="max-w-7xl mx-auto mb-6 flex items-center gap-3 text-sm text-zinc-400">
-        <Link href="/worldbuilder" className="hover:text-white transition">Worldbuilder</Link>
-        <span className="opacity-40">/</span>
-        <span className="text-zinc-200">Inventories</span>
-      </div>
-
       {/* header */}
-      <header className="max-w-7xl mx-auto mb-6">
-        <h1 className="font-evanescent st-title-gradient text-4xl sm:text-5xl tracking-tight">
-          <span className="bg-[linear-gradient(90deg,#a78bfa_0%,#fbbf24_50%,#a78bfa_100%)] bg-clip-text text-transparent drop-shadow">
-            Create Inventories
-          </span>
-        </h1>
-        <p className="text-zinc-400 mt-2 text-sm">
-          General Items, Weapons, and Armor · connected to DB. <span className={ACCENT}>GM is G.O.D.</span>
-        </p>
+      <header className="max-w-7xl mx-auto mb-8">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link
+              href="/worldbuilder"
+              className="rounded-xl border border-white/15 px-3 py-1.5 text-sm text-zinc-200 hover:bg-white/10"
+            >
+              ← World Builder
+            </Link>
+            <div>
+              <h1 className="font-evanescent st-title-gradient text-4xl sm:text-5xl tracking-tight">
+                Create Inventories
+              </h1>
+              <p className="text-zinc-400 mt-2 text-sm">
+                General Items, Weapons, and Armor · connected to DB. <span className="text-amber-300">GM is G.O.D.</span>
+              </p>
+            </div>
+          </div>
+          <WBNav current="inventory" />
+        </div>
       </header>
 
       {/* panel */}

@@ -3,6 +3,43 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 
+/* ---------- local nav ---------- */
+function WBNav({
+  current = "races",
+}: {
+  current?: "worlds" | "creatures" | "skillsets" | "races" | "inventory";
+}) {
+  const items = [
+    { href: "/worldbuilder/worlds", key: "worlds", label: "Worlds" },
+    { href: "/worldbuilder/creatures", key: "creatures", label: "Creatures" },
+    { href: "/worldbuilder/skillsets", key: "skillsets", label: "Skillsets" },
+    { href: "/worldbuilder/races", key: "races", label: "Races" },
+    { href: "/worldbuilder/inventory", key: "inventory", label: "Inventory" },
+  ] as const;
+
+  return (
+    <nav className="flex flex-wrap gap-2">
+      {items.map((it) => {
+        const active = current === it.key;
+        return (
+          <Link
+            key={it.key}
+            href={it.href}
+            className={[
+              "rounded-xl px-3 py-1.5 text-sm border",
+              active
+                ? "border-violet-400/40 text-violet-200 bg-violet-400/10"
+                : "border-white/15 text-zinc-200 hover:bg-white/10",
+            ].join(" ")}
+          >
+            {it.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
 /* ---------- Types ---------- */
 type TabKey = "identity" | "attributes" | "bonuses" | "preview";
 
@@ -428,37 +465,23 @@ export default function RacesPage() {
   return (
     <main className="min-h-screen px-6 py-10">
       {/* Header */}
-      <div className="max-w-7xl mx-auto mb-6">
+      <div className="max-w-7xl mx-auto mb-8">
         <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-sm text-neutral-400">
-              <Link href="/worldbuilder" className="hover:text-neutral-200">World Builder</Link>
-              <span>›</span>
-              <span>Races</span>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/worldbuilder"
+              className="rounded-xl border border-white/15 px-3 py-1.5 text-sm text-zinc-200 hover:bg-white/10"
+            >
+              ← World Builder
+            </Link>
+            <div>
+              <h1 className="font-evanescent st-title-gradient text-4xl sm:text-5xl tracking-tight">
+                Race Designer
+              </h1>
+              <p className="mt-1 text-sm text-neutral-400">Define racial lore, attribute caps/bases, and racial bonuses. Remember: the GM is G.O.D.</p>
             </div>
-            <h1 className="font-evanescent st-title-gradient text-4xl sm:text-5xl tracking-tight">
-              Race Designer
-            </h1>
-            <p className="mt-1 text-sm text-neutral-400">Define racial lore, attribute caps/bases, and racial bonuses. Remember: the GM is G.O.D.</p>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="rounded-md border border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-800/40 disabled:opacity-50"
-              onClick={onSave}
-              disabled={saving || loading || !race}
-            >
-              {saving ? "Saving…" : "Save"}
-            </button>
-            <button
-              type="button"
-              className="rounded-md border border-rose-700 text-rose-200 px-3 py-1.5 text-sm hover:bg-rose-900/30 disabled:opacity-50"
-              onClick={onDeleteRace}
-              disabled={loading || !race}
-            >
-              Delete
-            </button>
-          </div>
+          <WBNav current="races" />
         </div>
       </div>
 
@@ -523,7 +546,24 @@ export default function RacesPage() {
           </button>
         </div>
 
-        <div className="flex-1" />
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            type="button"
+            className="rounded-md border border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-800/40 disabled:opacity-50"
+            onClick={onSave}
+            disabled={saving || loading || !race}
+          >
+            {saving ? "Saving…" : "Save"}
+          </button>
+          <button
+            type="button"
+            className="rounded-md border border-rose-700 text-rose-200 px-3 py-1.5 text-sm hover:bg-rose-900/30 disabled:opacity-50"
+            onClick={onDeleteRace}
+            disabled={loading || !race}
+          >
+            Delete
+          </button>
+        </div>
       </header>
 
       {/* Editor */}

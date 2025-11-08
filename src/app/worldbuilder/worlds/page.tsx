@@ -163,14 +163,14 @@ async function apiPost<T>(body: any): Promise<T> {
 function WBNav({
   current = "worlds",
 }: {
-  current?: "worlds" | "creatures" | "skills" | "races" | "abilities";
+  current?: "worlds" | "creatures" | "skillsets" | "races" | "inventory";
 }) {
   const items = [
     { href: "/worldbuilder/worlds", key: "worlds", label: "Worlds" },
     { href: "/worldbuilder/creatures", key: "creatures", label: "Creatures" },
-    { href: "/worldbuilder/skills", key: "skills", label: "Skills" },
+    { href: "/worldbuilder/skillsets", key: "skillsets", label: "Skillsets" },
     { href: "/worldbuilder/races", key: "races", label: "Races" },
-    { href: "/worldbuilder/abilities", key: "abilities", label: "Special Abilities" },
+    { href: "/worldbuilder/inventory", key: "inventory", label: "Inventory" },
   ] as const;
 
   return (

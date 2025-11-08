@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 // ---- Types with stable ids ----
@@ -17,11 +18,347 @@ const uid = () =>
 
 const presetGenreTags = ["Fantasy","Sci-Fi","Dieselpunk","Cyberpunk","Weird","Mythic","Pulp","Grim","Heroic","Cosmic"];
 
-// ====== TEMP SOURCE LISTS (replace with API later) ======
-const raceOptions     = ["Human","Elf","Dwarf","Orc","Gnome","Halfling","Tiefling","Aasimar","Dragonkin","Construct"];
-const creatureOptions = ["Wolf","Goblin","Dragon","Slime","Giant Spider","Undead","Elemental","Harpy","Hydra","Mimic"];
+// ===== UI COMPONENTS (moved outside to prevent recreation on re-renders) =====
+const Section = ({ title, children, subtitle }: { title: string; subtitle?: string; children: React.ReactNode }) => (
+  <section className="rounded-2xl border border-white/15 bg-white/10 p-5 md:p-6 backdrop-blur-sm shadow-sm">
+    <div className="mb-4">
+      <h2 className="text-xl md:text-2xl font-semibold tracking-tight text-zinc-100">{title}</h2>
+      {subtitle && <p className="text-sm text-zinc-300 mt-1">{subtitle}</p>}
+    </div>
+    {children}
+  </section>
+);
+
+const Card = ({ title, children }: { title: string; children: React.ReactNode }) => (
+  <div className="rounded-xl border border-white/15 bg-black/30 p-4">
+    <h3 className="font-semibold mb-3 text-zinc-100">{title}</h3>
+    {children}
+  </div>
+);
+
+const Input = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
+  <input
+    {...props}
+    autoComplete="off"
+    className={`w/full rounded-lg bg-white/10 text-zinc-100 placeholder:text-zinc-400 border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400 ${props.className || ""}`}
+  />
+);
+
+const Textarea = (props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
+  <textarea
+    {...props}
+    autoComplete="off"
+    className={`w/full rounded-lg bg-white/10 text-zinc-100 placeholder:text-zinc-400 border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400 ${props.className || ""}`}
+  />
+);
+
+// --- BetterSelect: dark dropdowns that are readable ---
+const BetterSelect = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => (
+  <div className="relative">
+    <select
+      {...props}
+      className={`w/full appearance-none rounded-lg bg-[#0b0b0f] text-zinc-100 border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400 pr-9 ${props.className || ""}`}
+    />
+    <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-zinc-300">▾</span>
+  </div>
+);
+
+/* ===== NumberInput: free typing, commit on blur/Enter, clamps ===== */
+function NumberInput({
+  value,
+  onCommit,
+  min,
+  max,
+  step,
+  placeholder,
+}: {
+  value: number | "";
+  onCommit: (v: number | "") => void;
+  min?: number;
+  max?: number;
+  step?: number | string;
+  placeholder?: string;
+}) {
+  const [raw, setRaw] = useState<string>(value === "" ? "" : String(value));
+  useEffect(() => { const nv = value === "" ? "" : String(value); if (nv !== raw) setRaw(nv); }, [value, raw]); // sync from parent
+
+  const commit = () => {
+    const s = raw.trim();
+    if (s === "") { onCommit(""); return; }
+    const n = Number(s);
+    if (Number.isNaN(n)) { onCommit(""); return; }
+    const clamped = clamp(n, min, max);
+    onCommit(clamped);
+    setRaw(String(clamped));
+  };
+
+  return (
+    <input
+      inputMode="decimal"
+      autoComplete="off"
+      placeholder={placeholder}
+      value={raw}
+      onChange={(e) => setRaw(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commit(); } }}
+      className="w-full rounded-lg bg-white/10 text-zinc-100 placeholder:text-zinc-400 border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400"
+    />
+  );
+
+  function clamp(n: number, min?: number, max?: number) {
+    if (typeof min === "number") n = Math.max(min, n);
+    if (typeof max === "number") n = Math.min(max, n);
+    return n;
+  }
+}
 
 export default function WorldDetailsPage() {
+  // ===== URL Parameters =====
+  const searchParams = useSearchParams();
+  const worldId = searchParams.get('worldId');
+
+  // ===== Data Loading =====
+  useEffect(() => {
+    if (worldId) {
+      console.log('WorldDetails: Loading data for worldId:', worldId);
+      loadWorldData(worldId);
+    }
+  }, [worldId]);
+
+  const loadWorldData = async (worldId: string) => {
+    try {
+      const response = await fetch(`/api?world_id=${worldId}`);
+      if (!response.ok) {
+        throw new Error(`Failed to load world data: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      if (!data.ok) {
+        throw new Error(data.error || 'Failed to load world data');
+      }
+      
+      // Populate basic world info
+      setWorldName(data.world?.name || "");
+      setPitch(data.world?.description || ""); // Use world description instead of details.pitch
+      
+      // Populate tags
+      setTags(data.tags && data.tags.length > 0 ? data.tags : ["Fantasy"]);
+      
+      // Populate astral bodies
+      if (data.details) {
+        setSunCount(data.details.suns_count ?? 1);
+      }
+      if (data.moons) {
+        setMoons(data.moons.map((m: any) => ({
+          id: uid(),
+          name: m.name || "",
+          cycle: m.cycle_days ?? "",
+          omen: m.omen || ""
+        })));
+      }
+      
+      // Populate time & calendar
+      if (data.details) {
+        setDayHours(data.details.day_hours ?? "");
+        setYearDays(data.details.year_days ?? "");
+        setLeapRule(data.details.leap_rule || "");
+      }
+      if (data.months) {
+        setMonths(data.months.map((m: any) => ({
+          id: uid(),
+          name: m.name || "",
+          days: m.days ?? ""
+        })));
+      }
+      if (data.weekdays) {
+        setWeekdays(data.weekdays.map((w: any) => ({
+          id: uid(),
+          value: w.value || ""
+        })));
+      }
+      
+      // Populate planet profile
+      if (data.details) {
+        setPlanetType(data.details.planet_type || "Terrestrial");
+        setSizeClass(data.details.size_class || "");
+        setGravity(data.details.gravity_vs_earth ?? "");
+        setWaterPct(data.details.water_pct ?? "");
+        setTectonics(data.details.tectonics || "Medium");
+      }
+      setClimates(data.climates || []);
+      
+      // Populate magic model
+      if (data.magic) {
+        const systems = data.magic.builtins || [];
+        if (data.magic.customs && data.magic.customs.length > 0) {
+          systems.push("Custom(+name)");
+        }
+        setMagicSystems(systems);
+        setCustomMagic(data.magic.customs || []);
+      }
+      if (data.details) {
+        setSourceStatement(data.details.source_statement || "");
+        setCorruption(data.details.corruption_level || "Moderate");
+      }
+      if (data.unbreakables) {
+        setUnbreakables(data.unbreakables.map((u: any) => ({
+          id: uid(),
+          value: u.value || ""
+        })));
+      }
+      
+      // Populate tech window
+      if (data.details) {
+        setTechFrom(data.details.tech_from || "Iron");
+        setTechTo(data.details.tech_to || "Industrial");
+      }
+      if (data.bans) {
+        setBans(data.bans.map((b: string) => ({
+          id: uid(),
+          value: b
+        })));
+      }
+      
+      // Populate tone flags
+      setToneFlags(data.tone_flags || ["Heroic"]);
+      
+      // Populate cosmology
+      if (data.details) {
+        setPlayerSafeSummaryOn(data.details.player_safe_summary_on !== 0);
+      }
+      if (data.realms) {
+        setRealms(data.realms.map((r: any) => ({
+          id: uid(),
+          name: r.name || "",
+          type: r.type || "",
+          traits: r.traits || "",
+          travel: r.travel || "",
+          bleed: r.bleed || ""
+        })));
+      }
+      
+      // Populate master catalogs
+      if (data.race_catalog) {
+        setRaces(data.race_catalog.map((r: any) => r.name));
+      }
+      if (data.creature_catalog) {
+        setCreatures(data.creature_catalog.map((c: any) => c.name));
+      }
+      setLanguages(data.languages || []);
+      setDeities(data.deities || []);
+      setFactions(data.factions || []);
+      
+      // Populate available options from database
+      if (data.all_races) {
+        setAllRaces(data.all_races.map((r: any) => r.name));
+      }
+      if (data.all_creatures) {
+        setAllCreatures(data.all_creatures.map((c: any) => c.name));
+      }
+      
+      console.log('WorldDetails: Data loaded successfully');
+    } catch (error) {
+      console.error('Failed to load world data:', error);
+      // You might want to show an error message to the user here
+    }
+  };
+
+  const saveWorldData = async () => {
+    if (!worldId) {
+      console.error('No worldId available for saving');
+      return;
+    }
+
+    try {
+      const payload = {
+        world_id: parseInt(worldId),
+        world_name: worldName,
+        world_description: pitch, // Save pitch as world description
+        details: {
+          suns_count: sunCount,
+          day_hours: dayHours === "" ? null : dayHours,
+          year_days: yearDays === "" ? null : yearDays,
+          leap_rule: leapRule || null,
+          planet_type: planetType,
+          planet_type_note: planetType === "Custom" ? sizeClass : null,
+          size_class: sizeClass || null,
+          gravity_vs_earth: gravity === "" ? null : gravity,
+          water_pct: waterPct === "" ? null : waterPct,
+          tectonics: tectonics,
+          source_statement: sourceStatement || null,
+          corruption_level: corruption,
+          corruption_note: null, // Add if corruption === "Custom"
+          tech_from: techFrom,
+          tech_to: techTo,
+          player_safe_summary_on: playerSafeSummaryOn ? 1 : 0
+        },
+        tags: tags,
+        moons: moons.map((m, index) => ({
+          name: m.name,
+          cycle_days: m.cycle === "" ? null : m.cycle,
+          omen: m.omen || null,
+          order_index: index
+        })),
+        months: months.map((m, index) => ({
+          name: m.name,
+          days: m.days === "" ? null : m.days,
+          order_index: index
+        })),
+        weekdays: weekdays.map((w, index) => ({
+          value: w.value,
+          order_index: index
+        })),
+        climates: climates,
+        magic: {
+          builtins: magicSystems.filter(s => s !== "Custom(+name)"),
+          customs: customMagic
+        },
+        unbreakables: unbreakables.map((u, index) => ({
+          value: u.value,
+          order_index: index
+        })),
+        bans: bans.map(b => b.value),
+        tone_flags: toneFlags,
+        realms: realms.map((r, index) => ({
+          name: r.name,
+          type: r.type || null,
+          traits: r.traits || null,
+          travel: r.travel || null,
+          bleed: r.bleed || null,
+          order_index: index
+        })),
+        languages: languages,
+        deities: deities,
+        factions: factions,
+        race_names: races,
+        creature_names: creatures
+      };
+
+      const response = await fetch('/api', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to save world data: ${response.status}`);
+      }
+
+      const result = await response.json();
+      if (!result.ok) {
+        throw new Error(result.error || 'Failed to save world data');
+      }
+
+      console.log('WorldDetails: Data saved successfully');
+      // You might want to show a success message to the user here
+    } catch (error) {
+      console.error('Failed to save world data:', error);
+      // You might want to show an error message to the user here
+    }
+  };
+
   // ===== Global guards =====
   useEffect(() => {
     if ("scrollRestoration" in history) {
@@ -102,69 +439,30 @@ export default function WorldDetailsPage() {
   const [deities, setDeities] = useState<string[]>([]);
   const [factions, setFactions] = useState<string[]>([]);
 
+  // ===== Available Options (from database) =====
+  const [allRaces, setAllRaces] = useState<string[]>([]);
+  const [allCreatures, setAllCreatures] = useState<string[]>([]);
+
   // ===== Refs =====
   const eWeekRef = useRef<HTMLInputElement>(null);
 
-  // ===== Utilities =====
-  const addChip = (list: string[], setList: (v: string[]) => void, value: string) => {
+  // ===== Utilities (memoized to prevent re-creation on renders) =====
+  const addChip = useCallback((list: string[], setList: (v: string[]) => void, value: string) => {
     const v = value.trim();
     if (!v || list.includes(v)) return;
     setList([...list, v]);
-  };
-  const removeChip = (list: string[], setList: (v: string[]) => void, value: string) =>
-    setList(list.filter((t) => t !== value));
-  const moveIndex = <T,>(arr: T[], from: number, to: number) => {
+  }, []);
+
+  const removeChip = useCallback((list: string[], setList: (v: string[]) => void, value: string) =>
+    setList(list.filter((t) => t !== value)), []);
+
+  const moveIndex = useCallback(<T,>(arr: T[], from: number, to: number) => {
     if (from === to) return arr;
     const c = [...arr];
     const [it] = c.splice(from, 1);
     c.splice(to, 0, it);
     return c;
-  };
-
-  // ===== UI atoms =====
-  const Section = ({ title, children, subtitle }: { title: string; subtitle?: string; children: React.ReactNode }) => (
-    <section className="rounded-2xl border border-white/15 bg-white/10 p-5 md:p-6 backdrop-blur-sm shadow-sm">
-      <div className="mb-4">
-        <h2 className="text-xl md:text-2xl font-semibold tracking-tight text-zinc-100">{title}</h2>
-        {subtitle && <p className="text-sm text-zinc-300 mt-1">{subtitle}</p>}
-      </div>
-      {children}
-    </section>
-  );
-
-  const Card = ({ title, children }: { title: string; children: React.ReactNode }) => (
-    <div className="rounded-xl border border-white/15 bg-black/30 p-4">
-      <h3 className="font-semibold mb-3 text-zinc-100">{title}</h3>
-      {children}
-    </div>
-  );
-
-  const Input = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
-    <input
-      {...props}
-      autoComplete="off"
-      className={`w/full rounded-lg bg-white/10 text-zinc-100 placeholder:text-zinc-400 border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400 ${props.className || ""}`}
-    />
-  );
-
-  const Textarea = (props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
-    <textarea
-      {...props}
-      autoComplete="off"
-      className={`w/full rounded-lg bg-white/10 text-zinc-100 placeholder:text-zinc-400 border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400 ${props.className || ""}`}
-    />
-  );
-
-  // --- BetterSelect: dark dropdowns that are readable ---
-  const BetterSelect = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => (
-    <div className="relative">
-      <select
-        {...props}
-        className={`w/full appearance-none rounded-lg bg-[#0b0b0f] text-zinc-100 border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400 pr-9 ${props.className || ""}`}
-      />
-      <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-zinc-300">▾</span>
-    </div>
-  );
+  }, []);
 
   return (
     <form
@@ -177,9 +475,10 @@ export default function WorldDetailsPage() {
 
       <header className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-zinc-100">World Details</h1>
+          <h1 className="font-evanescent st-title-gradient text-4xl sm:text-5xl tracking-tight">World Details</h1>
           <p className="text-zinc-300 text-sm">
-            World = non-negotiable rules + master catalogs. Era/Setting choose subsets; they can’t invent new items.
+            World = non-negotiable rules + master catalogs. Era/Setting choose subsets; they can't invent new items.
+            {worldId ? ` (World ID: ${worldId})` : ' (No world ID provided)'}
           </p>
         </div>
         <Link
@@ -558,7 +857,7 @@ export default function WorldDetailsPage() {
         <div className="grid md:grid-cols-2 gap-4">
           <Card title="Races (choose from DB)">
             <MultiPicker
-              source={raceOptions}             // TODO: replace with data from /api/races
+              source={allRaces}               // Use all races from database
               values={races}
               onChange={setRaces}
               placeholder="Search races…"
@@ -567,7 +866,7 @@ export default function WorldDetailsPage() {
           </Card>
           <Card title="Creatures (choose from DB)">
             <MultiPicker
-              source={creatureOptions}         // TODO: replace with data from /api/creatures
+              source={allCreatures}           // Use all creatures from database
               values={creatures}
               onChange={setCreatures}
               placeholder="Search creatures…"
@@ -588,60 +887,17 @@ export default function WorldDetailsPage() {
 
       {/* FOOTER ACTIONS */}
       <div className="sticky bottom-4 flex gap-3 justify-end">
-        <button type="button" className="rounded-lg border border-white/15 bg-white/10 px-4 py-2 hover:bg-white/15">Save (disabled)</button>
+        <button 
+          type="button" 
+          onClick={saveWorldData}
+          className="rounded-lg border border-white/15 bg-white/10 px-4 py-2 hover:bg-white/15"
+        >
+          Save
+        </button>
         <button type="button" className="rounded-lg border border-amber-300/60 bg-amber-400/90 text-black px-4 py-2 hover:bg-amber-300">Export Player Handout (stub)</button>
       </div>
     </form>
   );
-}
-
-/* ===== NumberInput: free typing, commit on blur/Enter, clamps ===== */
-function NumberInput({
-  value,
-  onCommit,
-  min,
-  max,
-  step,
-  placeholder,
-}: {
-  value: number | "";
-  onCommit: (v: number | "") => void;
-  min?: number;
-  max?: number;
-  step?: number | string;
-  placeholder?: string;
-}) {
-  const [raw, setRaw] = useState<string>(value === "" ? "" : String(value));
-  useEffect(() => { const nv = value === "" ? "" : String(value); if (nv !== raw) setRaw(nv); }, [value]); // sync from parent
-
-  const commit = () => {
-    const s = raw.trim();
-    if (s === "") { onCommit(""); return; }
-    const n = Number(s);
-    if (Number.isNaN(n)) { onCommit(""); return; }
-    const clamped = clamp(n, min, max);
-    onCommit(clamped);
-    setRaw(String(clamped));
-  };
-
-  return (
-    <input
-      inputMode="decimal"
-      autoComplete="off"
-      placeholder={placeholder}
-      value={raw}
-      onChange={(e) => setRaw(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commit(); } }}
-      className="w-full rounded-lg bg-white/10 text-zinc-100 placeholder:text-zinc-400 border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400"
-    />
-  );
-
-  function clamp(n: number, min?: number, max?: number) {
-    if (typeof min === "number") n = Math.max(min, n);
-    if (typeof max === "number") n = Math.min(max, n);
-    return n;
-  }
 }
 
 /* ===== MultiPicker: searchable, chip-based from a fixed source list ===== */

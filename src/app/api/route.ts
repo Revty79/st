@@ -45,8 +45,24 @@ function ensureWorldExists(world_id: number) {
 
 // resolves race/creature by name to ID (if provided)
 function idByName(table: "races" | "creatures", name: string): number | null {
-  const row = db.prepare(`SELECT id FROM ${table} WHERE name = ?`).get(name) as { id: number } | undefined;
-  return row?.id ?? null;
+  try {
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      console.warn(`[idByName] Invalid name provided for ${table}:`, name);
+      return null;
+    }
+    
+    const row = db.prepare(`SELECT id FROM ${table} WHERE name = ?`).get(name.trim()) as { id: number } | undefined;
+    const result = row?.id ?? null;
+    
+    if (!result) {
+      console.warn(`[idByName] No ${table.slice(0, -1)} found with name:`, name);
+    }
+    
+    return result;
+  } catch (error) {
+    console.error(`[idByName] Error looking up ${table} by name "${name}":`, error);
+    return null;
+  }
 }
 
 // ---------- GET ----------
@@ -144,6 +160,15 @@ export async function GET(req: Request) {
       )
       .all(world_id) as { id: number; name: string }[];
 
+    // Get ALL races and creatures from their respective databases
+    const all_races = db
+      .prepare(`SELECT id, name FROM races ORDER BY name`)
+      .all() as { id: number; name: string }[];
+
+    const all_creatures = db
+      .prepare(`SELECT id, name FROM creatures ORDER BY name`)
+      .all() as { id: number; name: string }[];
+
     return NextResponse.json({
       ok: true,
       world,
@@ -164,8 +189,10 @@ export async function GET(req: Request) {
       languages: languages.map((x) => x.value),
       deities: deities.map((x) => x.value),
       factions: factions.map((x) => x.value),
-      race_catalog: race_rows, // {id,name}[]
-      creature_catalog: creature_rows, // {id,name}[]
+      race_catalog: race_rows, // {id,name}[] - races included in this world
+      creature_catalog: creature_rows, // {id,name}[] - creatures included in this world
+      all_races: all_races, // {id,name}[] - all available races
+      all_creatures: all_creatures, // {id,name}[] - all available creatures
     });
   } catch (err: any) {
     return bad(err.message || "Failed to load world details", 500);
@@ -201,17 +228,36 @@ export async function GET(req: Request) {
  * }
  */
 export async function POST(req: Request) {
+  let world_id: number | null = null;
   try {
+    console.log(`[POST] Starting world details update`);
     const body = await readJson<any>(req);
-    const world_id = toInt(body.world_id || body.worldId);
+    world_id = toInt(body.world_id || body.worldId);
     if (!world_id) return bad("world_id is required");
+
+    console.log(`[POST] Updating world ${world_id} with data:`, {
+      world_name: body.world_name,
+      race_count: arr<string>(body.race_names || []).length,
+      creature_count: arr<string>(body.creature_names || []).length,
+      has_race_names: !!(body.race_names && body.race_names.length > 0),
+      has_race_ids: !!(body.race_ids && body.race_ids.length > 0),
+      has_creature_names: !!(body.creature_names && body.creature_names.length > 0),
+      has_creature_ids: !!(body.creature_ids && body.creature_ids.length > 0)
+    });
 
     ensureWorldExists(world_id);
 
     const d = body.details || {};
 
     // Start transaction
+    console.log(`[POST] Starting database transaction`);
     db.exec("BEGIN");
+
+    // ----- update main world info if provided -----
+    if (body.world_name || body.world_description) {
+      db.prepare(`UPDATE worlds SET name = COALESCE(?, name), description = COALESCE(?, description), updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?`)
+        .run(body.world_name || null, body.world_description || null, world_id);
+    }
 
     // ----- upsert world_details (1:1) -----
     const existing = db.prepare(`SELECT id FROM world_details WHERE world_id = ?`).get(world_id) as
@@ -374,33 +420,114 @@ export async function POST(req: Request) {
     for (const v of arr<string>(body.factions)) insFaction.run(world_id, String(v).trim());
 
     // catalogs: races / creatures
-    clear("world_race_catalog");
-    const race_ids = new Set<number>();
-    for (const id of arr<number>(body.race_ids)) if (Number.isFinite(id)) race_ids.add(Number(id));
-    for (const nm of arr<string>(body.race_names)) {
-      const id = idByName("races", nm);
-      if (id) race_ids.add(id);
+    console.log(`[POST] Processing race catalog for world ${world_id}`);
+    
+    // Validate that we're not accidentally processing empty/invalid data
+    const race_names_input = arr<string>(body.race_names || []);
+    const race_ids_input = arr<number>(body.race_ids || []);
+    
+    console.log(`[POST] Race names input:`, race_names_input);
+    console.log(`[POST] Race IDs input:`, race_ids_input);
+    
+    // Only clear and rebuild catalog if we have actual data to process
+    // This prevents accidental deletion when no race data is provided
+    if (race_names_input.length > 0 || race_ids_input.length > 0) {
+      clear("world_race_catalog");
+      const race_ids = new Set<number>();
+      
+      // Process race IDs
+      for (const id of race_ids_input) {
+        if (Number.isFinite(id) && id > 0) {
+          race_ids.add(Number(id));
+          console.log(`[POST] Added race ID: ${id}`);
+        }
+      }
+      
+      // Process race names
+      for (const nm of race_names_input) {
+        if (nm && typeof nm === 'string' && nm.trim()) {
+          const id = idByName("races", nm.trim());
+          if (id) {
+            race_ids.add(id);
+            console.log(`[POST] Added race by name "${nm}" (ID: ${id})`);
+          }
+        }
+      }
+      
+      console.log(`[POST] Final race IDs for world catalog:`, Array.from(race_ids));
+      
+      const insWRC = db.prepare(`INSERT INTO world_race_catalog (world_id, race_id) VALUES (?, ?)`);
+      for (const id of race_ids) {
+        try {
+          insWRC.run(world_id, id);
+        } catch (error) {
+          console.error(`[POST] Failed to insert race ID ${id} into world catalog:`, error);
+        }
+      }
+    } else {
+      console.log(`[POST] No race data provided, skipping catalog update for world ${world_id}`);
     }
-    const insWRC = db.prepare(`INSERT INTO world_race_catalog (world_id, race_id) VALUES (?, ?)`);
-    for (const id of race_ids) insWRC.run(world_id, id);
 
-    clear("world_creature_catalog");
-    const creature_ids = new Set<number>();
-    for (const id of arr<number>(body.creature_ids)) if (Number.isFinite(id)) creature_ids.add(Number(id));
-    for (const nm of arr<string>(body.creature_names)) {
-      const id = idByName("creatures", nm);
-      if (id) creature_ids.add(id);
+    console.log(`[POST] Processing creature catalog for world ${world_id}`);
+    
+    // Validate that we're not accidentally processing empty/invalid data
+    const creature_names_input = arr<string>(body.creature_names || []);
+    const creature_ids_input = arr<number>(body.creature_ids || []);
+    
+    console.log(`[POST] Creature names input:`, creature_names_input);
+    console.log(`[POST] Creature IDs input:`, creature_ids_input);
+    
+    // Only clear and rebuild catalog if we have actual data to process
+    if (creature_names_input.length > 0 || creature_ids_input.length > 0) {
+      clear("world_creature_catalog");
+      const creature_ids = new Set<number>();
+      
+      // Process creature IDs
+      for (const id of creature_ids_input) {
+        if (Number.isFinite(id) && id > 0) {
+          creature_ids.add(Number(id));
+          console.log(`[POST] Added creature ID: ${id}`);
+        }
+      }
+      
+      // Process creature names
+      for (const nm of creature_names_input) {
+        if (nm && typeof nm === 'string' && nm.trim()) {
+          const id = idByName("creatures", nm.trim());
+          if (id) {
+            creature_ids.add(id);
+            console.log(`[POST] Added creature by name "${nm}" (ID: ${id})`);
+          }
+        }
+      }
+      
+      console.log(`[POST] Final creature IDs for world catalog:`, Array.from(creature_ids));
+      
+      const insWCC = db.prepare(`INSERT INTO world_creature_catalog (world_id, creature_id) VALUES (?, ?)`);
+      for (const id of creature_ids) {
+        try {
+          insWCC.run(world_id, id);
+        } catch (error) {
+          console.error(`[POST] Failed to insert creature ID ${id} into world catalog:`, error);
+        }
+      }
+    } else {
+      console.log(`[POST] No creature data provided, skipping catalog update for world ${world_id}`);
     }
-    const insWCC = db.prepare(`INSERT INTO world_creature_catalog (world_id, creature_id) VALUES (?, ?)`);
-    for (const id of creature_ids) insWCC.run(world_id, id);
 
+    console.log(`[POST] Committing transaction for world ${world_id}`);
     db.exec("COMMIT");
+    console.log(`[POST] Successfully updated world ${world_id}`);
 
     return NextResponse.json({ ok: true });
   } catch (err: any) {
+    console.error(`[POST] Error updating world ${world_id}:`, err);
     try {
+      console.log(`[POST] Rolling back transaction for world ${world_id}`);
       db.exec("ROLLBACK");
-    } catch {}
+    } catch (rollbackErr) {
+      console.error(`[POST] Failed to rollback transaction:`, rollbackErr);
+    }
     return bad(err.message || "Failed to save world details", 500);
   }
 }

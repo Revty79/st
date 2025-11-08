@@ -4,6 +4,43 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 
+/* ---------- local nav ---------- */
+function WBNav({
+  current = "creatures",
+}: {
+  current?: "worlds" | "creatures" | "skillsets" | "races" | "inventory";
+}) {
+  const items = [
+    { href: "/worldbuilder/worlds", key: "worlds", label: "Worlds" },
+    { href: "/worldbuilder/creatures", key: "creatures", label: "Creatures" },
+    { href: "/worldbuilder/skillsets", key: "skillsets", label: "Skillsets" },
+    { href: "/worldbuilder/races", key: "races", label: "Races" },
+    { href: "/worldbuilder/inventory", key: "inventory", label: "Inventory" },
+  ] as const;
+
+  return (
+    <nav className="flex flex-wrap gap-2">
+      {items.map((it) => {
+        const active = current === it.key;
+        return (
+          <Link
+            key={it.key}
+            href={it.href}
+            className={[
+              "rounded-xl px-3 py-1.5 text-sm border",
+              active
+                ? "border-violet-400/40 text-violet-200 bg-violet-400/10"
+                : "border-white/15 text-zinc-200 hover:bg-white/10",
+            ].join(" ")}
+          >
+            {it.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
 // ---------- Types ----------
 type TabKey = "identity" | "stats" | "combat" | "behavior" | "preview";
 
@@ -350,31 +387,18 @@ export default function CreaturesPage() {
   return (
     <main className="min-h-screen px-6 py-8">
       {/* Header */}
-      <header className="max-w-7xl mx-auto mb-6 flex items-center gap-3">
-        <Link
-          href="/worldbuilder"
-          className="inline-flex items-center rounded-xl border px-3 py-1.5 text-sm hover:bg-neutral-950/40 border-neutral-800"
-        >
-          ← World Builder
-        </Link>
-        <h1 className="font-evanescent st-title-gradient text-4xl sm:text-5xl tracking-tight">Creatures</h1>
-        <div className="ml-auto flex items-center gap-2">
-          <button
-            type="button"
-            onClick={save}
-            disabled={busy || !activeId}
-            className="rounded-xl border border-amber-600/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-300 hover:bg-amber-500/20"
-          >
-            Save
-          </button>
-          <button
-            type="button"
-            onClick={remove}
-            disabled={!activeId}
-            className="rounded-xl border border-red-700/40 bg-red-600/10 px-3 py-2 text-sm text-red-300 hover:bg-red-600/20"
-          >
-            Delete
-          </button>
+      <header className="max-w-7xl mx-auto mb-8">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link
+              href="/worldbuilder"
+              className="rounded-xl border border-white/15 px-3 py-1.5 text-sm text-zinc-200 hover:bg-white/10"
+            >
+              ← World Builder
+            </Link>
+            <h1 className="font-evanescent st-title-gradient text-4xl sm:text-5xl tracking-tight">Creatures</h1>
+          </div>
+          <WBNav current="creatures" />
         </div>
       </header>
 
@@ -429,6 +453,25 @@ export default function CreaturesPage() {
         >
           Apply
         </button>
+
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            type="button"
+            onClick={save}
+            disabled={busy || !activeId}
+            className="rounded-xl border border-amber-600/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-300 hover:bg-amber-500/20"
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            onClick={remove}
+            disabled={!activeId}
+            className="rounded-xl border border-red-700/40 bg-red-600/10 px-3 py-2 text-sm text-red-300 hover:bg-red-600/20"
+          >
+            Delete
+          </button>
+        </div>
       </section>
 
       {/* Editor — form is keyed to activeId so defaultValues refresh cleanly */}

@@ -2,6 +2,44 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+
+/* ---------- local nav ---------- */
+function WBNav({
+  current = "skillsets",
+}: {
+  current?: "worlds" | "creatures" | "skillsets" | "races" | "inventory";
+}) {
+  const items = [
+    { href: "/worldbuilder/worlds", key: "worlds", label: "Worlds" },
+    { href: "/worldbuilder/creatures", key: "creatures", label: "Creatures" },
+    { href: "/worldbuilder/skillsets", key: "skillsets", label: "Skillsets" },
+    { href: "/worldbuilder/races", key: "races", label: "Races" },
+    { href: "/worldbuilder/inventory", key: "inventory", label: "Inventory" },
+  ] as const;
+
+  return (
+    <nav className="flex flex-wrap gap-2">
+      {items.map((it) => {
+        const active = current === it.key;
+        return (
+          <Link
+            key={it.key}
+            href={it.href}
+            className={[
+              "rounded-xl px-3 py-1.5 text-sm border",
+              active
+                ? "border-violet-400/40 text-violet-200 bg-violet-400/10"
+                : "border-white/15 text-zinc-200 hover:bg-white/10",
+            ].join(" ")}
+          >
+            {it.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
 
 /* ---------- constants ---------- */
 const ATTR_ITEMS = ["STR", "DEX", "CON", "INT", "WIS", "CHA", "NA"] as const;
@@ -1122,18 +1160,15 @@ export default function SkillsetsPage() {
   return (
     <main className="min-h-screen px-6 py-10">
       {/* Header */}
-      <header className="max-w-7xl mx-auto mb-6 flex items-center justify-between">
+      <header className="max-w-7xl mx-auto mb-8 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => {
-              if (typeof window !== "undefined" && window.history.length > 1) router.back();
-              else router.push("/worldbuilder");
-            }}
-            className="rounded-xl border border-white/10 px-3 py-2 text-sm hover:bg-white/10"
+          <Link
+            href="/worldbuilder"
+            className="rounded-xl border border-white/15 px-3 py-1.5 text-sm text-zinc-200 hover:bg-white/10"
             aria-label="Go back"
           >
-            ← Back
-          </button>
+            ← World Builder
+          </Link>
 
           <div>
             <h1 className="font-evanescent st-title-gradient text-4xl sm:text-5xl tracking-tight">
@@ -1143,27 +1178,7 @@ export default function SkillsetsPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button className="btn btn-gold" onClick={onNew}>New</button>
-          <button className="btn btn-gold" onClick={() => fileRef.current?.click()} title="Import CSV/TSV">
-            Import
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".csv,.tsv,.txt"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) handleImport(f);
-              (e.target as HTMLInputElement).value = "";
-            }}
-          />
-          <button className="btn btn-gold" onClick={saveActive}>💾 Save</button>
-          <button onClick={onDelete} disabled={!active} className="btn btn-gold disabled:opacity-50" title="Delete selected">
-            Delete
-          </button>
-        </div>
+        <WBNav current="skillsets" />
       </header>
 
       {/* Shell */}
@@ -1239,6 +1254,31 @@ export default function SkillsetsPage() {
               </option>
             ))}
           </select>
+        </div>
+
+        {/* Controls */}
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <div className="ml-auto flex items-center gap-2">
+            <button className="btn btn-gold" onClick={onNew}>New</button>
+            <button className="btn btn-gold" onClick={() => fileRef.current?.click()} title="Import CSV/TSV">
+              Import
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".csv,.tsv,.txt"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleImport(f);
+                (e.target as HTMLInputElement).value = "";
+              }}
+            />
+            <button className="btn btn-gold" onClick={saveActive}>💾 Save</button>
+            <button onClick={onDelete} disabled={!active} className="btn btn-gold disabled:opacity-50" title="Delete selected">
+              Delete
+            </button>
+          </div>
         </div>
 
         <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">

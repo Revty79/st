@@ -831,12 +831,12 @@ function OriginalTimelineSection({
                       >
                         + Add Setting
                       </button>
-                      <button
-                        className="rounded border border-white/15 px-2 py-1 text-xs hover:bg-white/10"
-                        onClick={() => alert(`(placeholder) Era #${era.id}`)}
+                      <Link
+                        href={`/worldbuilder/worlds/eradetails?worldId=${active.id}&eraId=${era.id}`}
+                        className="rounded border border-violet-400/40 px-2 py-1 text-xs text-violet-200 hover:bg-violet-400/10 inline-block"
                       >
                         Era Details
-                      </button>
+                      </Link>
                       <button
                         className="rounded border border-rose-400/40 px-2 py-1 text-xs text-rose-200 hover:bg-rose-400/10"
                         onClick={() => deleteEra(era.id)}

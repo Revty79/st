@@ -633,3 +633,249 @@ END;
 
 COMMIT;
 `);
+
+// --- WORLD DETAILS (for WorldDetailsPage) -----------------------------------
+db.exec(`
+PRAGMA foreign_keys = ON;
+
+BEGIN;
+
+-- =========================================================
+-- world_details (1:1 with worlds)
+-- =========================================================
+CREATE TABLE IF NOT EXISTS world_details (
+  id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id                INTEGER NOT NULL UNIQUE REFERENCES worlds(id) ON DELETE CASCADE,
+
+  -- Basic info
+  pitch                   TEXT NULL,
+
+  -- Astral bodies
+  suns_count              INTEGER NOT NULL DEFAULT 1 CHECK (suns_count BETWEEN 0 AND 5),
+
+  -- Time & calendar
+  day_hours               REAL    NULL CHECK (day_hours IS NULL OR (day_hours >= 1 AND day_hours <= 100)),
+  year_days               INTEGER NULL CHECK (year_days IS NULL OR (year_days >= 30 AND year_days <= 1000)),
+  leap_rule               TEXT NULL,
+
+  -- Planet profile
+  planet_type             TEXT NOT NULL DEFAULT 'Terrestrial'
+                          CHECK (planet_type IN ('Terrestrial','Oceanic','Tidally Locked','Ringworld','Custom')),
+  planet_type_note        TEXT NULL,           -- only used when planet_type = 'Custom'
+  size_class              TEXT NULL,           -- free text like "Earth-like", "Radius ~6,400 km"
+  gravity_vs_earth        REAL NULL CHECK (gravity_vs_earth IS NULL OR (gravity_vs_earth >= 0.1 AND gravity_vs_earth <= 5.0)),
+  water_pct               INTEGER NULL CHECK (water_pct IS NULL OR (water_pct BETWEEN 0 AND 100)),
+  tectonics               TEXT NOT NULL DEFAULT 'Medium'
+                          CHECK (tectonics IN ('None','Low','Medium','High')),
+
+  -- Magic model
+  source_statement        TEXT NULL,           -- ≤240 in UI; DB allows longer
+  corruption_level        TEXT NOT NULL DEFAULT 'Moderate'
+                          CHECK (corruption_level IN ('None','Mild','Moderate','Severe','Custom')),
+  corruption_note         TEXT NULL,           -- only used when corruption_level = 'Custom'
+
+  -- Tech window
+  tech_from               TEXT NOT NULL DEFAULT 'Iron'
+                          CHECK (tech_from IN ('Stone','Bronze','Iron','Medieval','Renaissance','Industrial','Diesel','Atomic','Digital','Cyber','Interstellar')),
+  tech_to                 TEXT NOT NULL DEFAULT 'Industrial'
+                          CHECK (tech_to   IN ('Stone','Bronze','Iron','Medieval','Renaissance','Industrial','Diesel','Atomic','Digital','Cyber','Interstellar')),
+
+  -- Player-safe export toggle
+  player_safe_summary_on  INTEGER NOT NULL DEFAULT 1 CHECK (player_safe_summary_on IN (0,1)),
+
+  created_at              TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at              TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_world_details_world ON world_details(world_id);
+
+CREATE TRIGGER IF NOT EXISTS trg_world_details_updated_at
+AFTER UPDATE ON world_details
+FOR EACH ROW
+BEGIN
+  UPDATE world_details
+  SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
+  WHERE id = NEW.id;
+END;
+
+-- =========================================================
+-- Genre/Tone tags (free list)
+-- =========================================================
+CREATE TABLE IF NOT EXISTS world_tags (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id   INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  value      TEXT NOT NULL,
+  UNIQUE(world_id, value)
+);
+CREATE INDEX IF NOT EXISTS idx_world_tags_world ON world_tags(world_id);
+
+-- =========================================================
+-- Moons (ordered)
+-- =========================================================
+CREATE TABLE IF NOT EXISTS world_moons (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id     INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  name         TEXT NOT NULL,                   -- ≤40 in UI
+  cycle_days   INTEGER NULL CHECK (cycle_days IS NULL OR (cycle_days BETWEEN 1 AND 999)),
+  omen         TEXT NULL,                       -- ≤120 in UI
+  order_index  INTEGER NOT NULL DEFAULT 0,
+  UNIQUE(world_id, order_index)
+);
+CREATE INDEX IF NOT EXISTS idx_world_moons_world ON world_moons(world_id);
+
+-- =========================================================
+-- Months (ordered)
+-- =========================================================
+CREATE TABLE IF NOT EXISTS world_months (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id     INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  name         TEXT NOT NULL,                   -- ≤30 in UI
+  days         INTEGER NOT NULL CHECK (days BETWEEN 1 AND 60),
+  order_index  INTEGER NOT NULL DEFAULT 0,
+  UNIQUE(world_id, order_index)
+);
+CREATE INDEX IF NOT EXISTS idx_world_months_world ON world_months(world_id);
+
+-- =========================================================
+-- Weekdays (ordered, UI constrains 2–14)
+-- =========================================================
+CREATE TABLE IF NOT EXISTS world_weekdays (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id     INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  value        TEXT NOT NULL,                   -- ≤20 in UI
+  order_index  INTEGER NOT NULL DEFAULT 0,
+  UNIQUE(world_id, order_index)
+);
+CREATE INDEX IF NOT EXISTS idx_world_weekdays_world ON world_weekdays(world_id);
+
+-- =========================================================
+-- Climate bands (free list)
+-- =========================================================
+CREATE TABLE IF NOT EXISTS world_climates (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id   INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  value      TEXT NOT NULL,
+  UNIQUE(world_id, value)
+);
+CREATE INDEX IF NOT EXISTS idx_world_climates_world ON world_climates(world_id);
+
+-- =========================================================
+-- Magic systems (built-ins) — the checkboxed ones
+-- =========================================================
+CREATE TABLE IF NOT EXISTS world_magic_systems (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id   INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  system     TEXT NOT NULL
+             CHECK (system IN ('Spellcraft','Talisman-making','Faith-based miracles','Psionics','Bardic arts')),
+  UNIQUE(world_id, system)
+);
+CREATE INDEX IF NOT EXISTS idx_world_magic_systems_world ON world_magic_systems(world_id);
+
+-- Custom magic system names (when "Custom(+name)" checked)
+CREATE TABLE IF NOT EXISTS world_magic_customs (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id   INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  name       TEXT NOT NULL,
+  UNIQUE(world_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_world_magic_customs_world ON world_magic_customs(world_id);
+
+-- =========================================================
+-- Unbreakable rules (ordered bullets)
+-- =========================================================
+CREATE TABLE IF NOT EXISTS world_unbreakables (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id     INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  value        TEXT NOT NULL,       -- ≤120 in UI
+  order_index  INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_world_unbreakables_world ON world_unbreakables(world_id);
+
+-- =========================================================
+-- Ban list (Does Not Exist)
+-- =========================================================
+CREATE TABLE IF NOT EXISTS world_bans (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id   INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  value      TEXT NOT NULL,
+  UNIQUE(world_id, value)
+);
+CREATE INDEX IF NOT EXISTS idx_world_bans_world ON world_bans(world_id);
+
+-- =========================================================
+-- Tone flags (checkboxed)
+-- =========================================================
+CREATE TABLE IF NOT EXISTS world_tone_flags (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id   INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  flag       TEXT NOT NULL CHECK (flag IN ('Heroic','Grim','Pulp','Mythic','Weird','Cosmic')),
+  UNIQUE(world_id, flag)
+);
+CREATE INDEX IF NOT EXISTS idx_world_tone_flags_world ON world_tone_flags(world_id);
+
+-- =========================================================
+-- Realms (ordered rows with short fields)
+-- =========================================================
+CREATE TABLE IF NOT EXISTS world_realms (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id     INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  name         TEXT NOT NULL,         -- ≤40 in UI
+  type         TEXT NULL,             -- ≤40 in UI
+  traits       TEXT NULL,             -- ≤80 in UI
+  travel       TEXT NULL,             -- ≤80 in UI
+  bleed        TEXT NULL,             -- ≤80 in UI
+  order_index  INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_world_realms_world ON world_realms(world_id);
+
+-- =========================================================
+-- Master catalog picks
+-- =========================================================
+
+-- Chosen races (from races table)
+CREATE TABLE IF NOT EXISTS world_race_catalog (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id   INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  race_id    INTEGER NOT NULL REFERENCES races(id)  ON DELETE CASCADE,
+  UNIQUE(world_id, race_id)
+);
+CREATE INDEX IF NOT EXISTS idx_world_race_catalog_world ON world_race_catalog(world_id);
+CREATE INDEX IF NOT EXISTS idx_world_race_catalog_race  ON world_race_catalog(race_id);
+
+-- Chosen creatures (from creatures table)
+CREATE TABLE IF NOT EXISTS world_creature_catalog (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id     INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  creature_id  INTEGER NOT NULL REFERENCES creatures(id) ON DELETE CASCADE,
+  UNIQUE(world_id, creature_id)
+);
+CREATE INDEX IF NOT EXISTS idx_world_creature_catalog_world ON world_creature_catalog(world_id);
+CREATE INDEX IF NOT EXISTS idx_world_creature_catalog_creature ON world_creature_catalog(creature_id);
+
+-- Languages, Deities, Factions (free lists)
+CREATE TABLE IF NOT EXISTS world_languages (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id   INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  value      TEXT NOT NULL,
+  UNIQUE(world_id, value)
+);
+CREATE INDEX IF NOT EXISTS idx_world_languages_world ON world_languages(world_id);
+
+CREATE TABLE IF NOT EXISTS world_deities (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id   INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  value      TEXT NOT NULL,
+  UNIQUE(world_id, value)
+);
+CREATE INDEX IF NOT EXISTS idx_world_deities_world ON world_deities(world_id);
+
+CREATE TABLE IF NOT EXISTS world_factions (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id   INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  value      TEXT NOT NULL,
+  UNIQUE(world_id, value)
+);
+CREATE INDEX IF NOT EXISTS idx_world_factions_world ON world_factions(world_id);
+
+COMMIT;
+`);

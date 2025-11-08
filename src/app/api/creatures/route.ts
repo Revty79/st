@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db"; // <- your existing better-sqlite3 instance
+import { getSessionUser } from "@/server/session";
 
 type Row = {
   id: number;
@@ -286,9 +287,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Name already exists" }, { status: 409 });
     }
 
-    // If you later store created_by_id from cookies, wire it here:
-    // const created_by_id = cookies().get("session_user_id")?.value ?? null;
-    const created_by_id = null;
+    // Get the authenticated user's ID from session
+    const user = await getSessionUser();
+    const created_by_id = user?.id ?? null;
 
     const insert = db.prepare(`
       INSERT INTO creatures (

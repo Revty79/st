@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/server/db";
+import { getSessionUser } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,7 +24,12 @@ type MarkerRow = {
 };
 
 function getWorldWithChildren(worldId: number) {
-  const w = db.prepare("SELECT * FROM worlds WHERE id = ?").get(worldId) as WorldRow | undefined;
+  const w = db.prepare(`
+    SELECT w.*, u.username AS created_by_username
+    FROM worlds w
+    LEFT JOIN users u ON u.id = w.created_by_id
+    WHERE w.id = ?
+  `).get(worldId) as (WorldRow & { created_by_username?: string }) | undefined;
   if (!w) return null;
 
   const eras = db
@@ -42,7 +48,12 @@ function getWorldWithChildren(worldId: number) {
 }
 
 function getAllWorldsWithChildren() {
-  const worlds = db.prepare("SELECT * FROM worlds ORDER BY id DESC").all() as WorldRow[];
+  const worlds = db.prepare(`
+    SELECT w.*, u.username AS created_by_username
+    FROM worlds w
+    LEFT JOIN users u ON u.id = w.created_by_id
+    ORDER BY w.id DESC
+  `).all() as (WorldRow & { created_by_username?: string })[];
   // guard against any `null` from getWorldWithChildren (paranoia, keeps UI happy)
   return worlds.map((w) => getWorldWithChildren(w.id)).filter(Boolean);
 }
@@ -89,6 +100,9 @@ export async function POST(req: Request) {
 
     // worlds ---------
     if (op === "createWorld") {
+      const user = await getSessionUser();
+      const userId = user?.id ?? null;
+
       const name = String(required(body.name, "name")).trim();
       const description = typeof body.description === "string" ? body.description : null;
 
@@ -96,8 +110,8 @@ export async function POST(req: Request) {
       if (dupe) return json({ ok: false, error: "World name already exists." }, { status: 409 });
 
       const info = db
-        .prepare(`INSERT INTO worlds (name, description, created_by_id) VALUES (?,?,NULL)`)
-        .run(name, description);
+        .prepare(`INSERT INTO worlds (name, description, created_by_id) VALUES (?,?,?)`)
+        .run(name, description, userId);
 
       const created = getWorldWithChildren(Number(info.lastInsertRowid));
       return json({ ok: true, data: created }, { status: 201 });

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/server/db";
+import { getSessionUser } from "@/server/session";
 
 // Make sure this route never gets cached
 export const dynamic = "force-dynamic";
@@ -80,11 +81,14 @@ export async function POST(req: Request) {
     const sa = cleanAttr(body.secondary_attribute ?? "NA");
     const definition = String(body.definition ?? "");
 
+    const user = await getSessionUser();
+    const userId = user?.id ?? null;
+
     const ins = db.prepare(`
-      INSERT INTO skills (name, type, tier, primary_attribute, secondary_attribute, definition)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO skills (name, type, tier, primary_attribute, secondary_attribute, definition, created_by_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
-    const info = ins.run(name, type, tier, pa, sa, definition);
+    const info = ins.run(name, type, tier, pa, sa, definition, userId);
 
     const sel = db.prepare(`
       SELECT s.*, u.username AS created_by_username

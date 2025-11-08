@@ -1,6 +1,7 @@
 // src/app/api/races/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
+import { getSessionUser } from "@/server/session";
 
 export const dynamic = "force-dynamic";
 
@@ -226,8 +227,8 @@ export async function POST(req: NextRequest) {
     const exists = rowOrNull(selRaceByName, [rawName]);
     if (exists) return bad(`Race '${rawName}' already exists.`);
 
-    const createdBy: string | null =
-      typeof body?.created_by_id === "string" ? body.created_by_id : null;
+    const user = await getSessionUser();
+    const createdBy = user?.id ?? null;
 
     const info = insRace.run(rawName, createdBy);
     const core = rowOrNull(selRaceById, [info.lastInsertRowid as number]);

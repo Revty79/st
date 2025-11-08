@@ -7,7 +7,8 @@
   --st-tint: rgba(3, 6, 14, 0.55);   /* darken layer over nebula */
 }
 
-html, body { height: 100%; }
+/* ✅ Use min-height so background covers beyond first viewport */
+html, body { min-height: 100%; }
 html { background-color: var(--st-deep); }
 
 body{

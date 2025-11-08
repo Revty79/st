@@ -5,6 +5,13 @@ import { db } from "@/server/db";
 const NAME = "st_session";
 const SECRET = process.env.TIDE_SECRET || "dev-secret-please-change";
 
+export type SessionUser = {
+  id: string;
+  username: string;
+  email: string;
+  role: "free" | "admin" | "worldbuilder" | "developer" | "privileged";
+};
+
 function sign(payload: string) {
   const h = crypto.createHmac("sha256", SECRET).update(payload).digest("base64url");
   return `${payload}.${h}`;
@@ -23,14 +30,14 @@ export function makeToken(userId: string) {
   return sign(`${userId}:${Date.now()}`);
 }
 
-export async function getSessionUser() {
+export async function getSessionUser(): Promise<SessionUser | null> {
   const jar = await cookies();
   const raw = jar.get(NAME)?.value;
   if (!raw) return null;
   const payload = verify(raw);
   if (!payload) return null;
   const [userId] = payload.split(":");
-  const row = db.prepare(`SELECT id, username, email, role FROM users WHERE id = ?`).get(userId);
+  const row = db.prepare(`SELECT id, username, email, role FROM users WHERE id = ?`).get(userId) as SessionUser | undefined;
   return row ?? null;
 }
 

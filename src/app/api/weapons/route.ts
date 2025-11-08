@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
+import { getSessionUser } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,7 +31,11 @@ export async function POST(req: NextRequest) {
   try {
     const { name } = await req.json();
     if (!name || !String(name).trim()) return NextResponse.json({ ok: false, error: "name required" }, { status: 400 });
-    const info = db.prepare(`INSERT INTO ${TABLE} (name) VALUES (?)`).run(String(name).trim());
+    
+    const user = await getSessionUser();
+    const userId = user?.id ?? null;
+    
+    const info = db.prepare(`INSERT INTO ${TABLE} (name, created_by_id) VALUES (?, ?)`).run(String(name).trim(), userId);
     const row = db.prepare(`SELECT * FROM ${TABLE} WHERE id = ?`).get(info.lastInsertRowid);
     return NextResponse.json({ ok: true, row });
   } catch (e: any) {

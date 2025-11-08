@@ -345,3 +345,291 @@ BEGIN
   UPDATE creatures SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = NEW.id;
 END;
 `);
+
+// --- RACES ------------------------------------------------------------------
+db.exec(`
+PRAGMA foreign_keys = ON;
+
+BEGIN;
+
+-- 🔥 Safe rebuild: drop old tables if they exist
+DROP TABLE IF EXISTS racial_special_abilities;
+DROP TABLE IF EXISTS racial_bonus_skills;
+DROP TABLE IF EXISTS racial_attributes;
+DROP TABLE IF EXISTS racial_definitions;
+DROP TABLE IF EXISTS races;
+
+-- =========================
+-- races (core)
+-- =========================
+CREATE TABLE races (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_by_id    TEXT NULL REFERENCES users(id) ON DELETE SET NULL,
+  created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+
+  name             TEXT NOT NULL UNIQUE
+);
+
+CREATE INDEX idx_races_name        ON races(name);
+CREATE INDEX idx_races_created_by  ON races(created_by_id);
+
+CREATE TRIGGER trg_races_updated_at
+AFTER UPDATE ON races
+FOR EACH ROW
+BEGIN
+  UPDATE races
+  SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
+  WHERE id = NEW.id;
+END;
+
+-- =========================
+-- racial_definitions (1:1 with races)
+-- (🚫 age_range/size REMOVED here)
+-- =========================
+CREATE TABLE racial_definitions (
+  id                          INTEGER PRIMARY KEY AUTOINCREMENT,
+  race_id                     INTEGER NOT NULL UNIQUE REFERENCES races(id) ON DELETE CASCADE,
+
+  legacy_description          TEXT NULL,
+  physical_characteristics    TEXT NULL,
+  physical_description        TEXT NULL,
+  racial_quirk                TEXT NULL,
+  quirk_success_effect        TEXT NULL,
+  quirk_failure_effect        TEXT NULL,
+  common_languages_known      TEXT NULL,
+  common_archetypes           TEXT NULL,
+  examples_by_genre           TEXT NULL,
+  cultural_mindset            TEXT NULL,
+  outlook_on_magic            TEXT NULL
+);
+
+CREATE INDEX idx_racial_definitions_race_id ON racial_definitions(race_id);
+
+-- =========================
+-- racial_attributes (1:1 with races)
+-- (✅ keep age_range/size here)
+-- =========================
+CREATE TABLE racial_attributes (
+  id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+  race_id              INTEGER NOT NULL UNIQUE REFERENCES races(id) ON DELETE CASCADE,
+
+  age_range            TEXT NULL,
+  size                 TEXT NULL,
+
+  strength_max         INTEGER NULL,
+  dexterity_max        INTEGER NULL,
+  constitution_max     INTEGER NULL,
+  intelligence_max     INTEGER NULL,
+  wisdom_max           INTEGER NULL,
+  charisma_max         INTEGER NULL,
+
+  base_magic           INTEGER NULL,
+  base_movement        INTEGER NULL
+);
+
+CREATE INDEX idx_racial_attributes_race_id ON racial_attributes(race_id);
+
+-- =========================
+-- racial_bonus_skills
+-- =========================
+CREATE TABLE racial_bonus_skills (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  race_id    INTEGER NOT NULL REFERENCES races(id)   ON DELETE CASCADE,
+  skill_id   INTEGER NOT NULL REFERENCES skills(id)  ON DELETE CASCADE,
+  points     INTEGER NOT NULL DEFAULT 0,
+  slot_idx   INTEGER NOT NULL DEFAULT 0,
+
+  UNIQUE (race_id, slot_idx),
+  UNIQUE (race_id, skill_id)
+);
+
+CREATE INDEX idx_rbs_race_id    ON racial_bonus_skills(race_id);
+CREATE INDEX idx_rbs_skill_id   ON racial_bonus_skills(skill_id);
+CREATE INDEX idx_rbs_slot       ON racial_bonus_skills(slot_idx);
+
+-- =========================
+-- racial_special_abilities
+-- =========================
+CREATE TABLE racial_special_abilities (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  race_id    INTEGER NOT NULL REFERENCES races(id)   ON DELETE CASCADE,
+  skill_id   INTEGER NOT NULL REFERENCES skills(id)  ON DELETE CASCADE,
+  points     INTEGER NOT NULL DEFAULT 0,
+  slot_idx   INTEGER NOT NULL DEFAULT 0,
+
+  UNIQUE (race_id, slot_idx),
+  UNIQUE (race_id, skill_id)
+);
+
+CREATE INDEX idx_rsa_race_id    ON racial_special_abilities(race_id);
+CREATE INDEX idx_rsa_skill_id   ON racial_special_abilities(skill_id);
+CREATE INDEX idx_rsa_slot       ON racial_special_abilities(slot_idx);
+
+COMMIT;
+`);
+
+// --- WORLDBUILDER -----------------------------------------------------------
+db.exec(`
+PRAGMA foreign_keys = ON;
+
+BEGIN;
+
+-- =========================
+-- worlds
+-- =========================
+CREATE TABLE IF NOT EXISTS worlds (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_by_id    TEXT NULL REFERENCES users(id) ON DELETE SET NULL,
+  created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+
+  name             TEXT NOT NULL UNIQUE,
+  description      TEXT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_worlds_name        ON worlds(name);
+CREATE INDEX IF NOT EXISTS idx_worlds_created_by  ON worlds(created_by_id);
+
+CREATE TRIGGER IF NOT EXISTS trg_worlds_updated_at
+AFTER UPDATE ON worlds
+FOR EACH ROW
+BEGIN
+  UPDATE worlds SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = NEW.id;
+END;
+
+-- =========================
+-- eras (child of worlds)
+-- =========================
+CREATE TABLE IF NOT EXISTS eras (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id         INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+
+  name             TEXT NOT NULL,
+  description      TEXT NULL,
+  start_year       INTEGER NULL,
+  end_year         INTEGER NULL,
+  color            TEXT NULL DEFAULT '#8b5cf6',
+
+  order_index      INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_eras_world           ON eras(world_id);
+CREATE INDEX IF NOT EXISTS idx_eras_world_order     ON eras(world_id, order_index);
+
+CREATE TRIGGER IF NOT EXISTS trg_eras_updated_at
+AFTER UPDATE ON eras
+FOR EACH ROW
+BEGIN
+  UPDATE eras SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = NEW.id;
+END;
+
+-- =========================
+-- settings (child of worlds, optionally linked to an era)
+-- NOTE: era_id is NULLABLE to match UI behavior when removing an era
+-- =========================
+CREATE TABLE IF NOT EXISTS settings (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id         INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  era_id           INTEGER NULL REFERENCES eras(id) ON DELETE SET NULL,
+  created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+
+  name             TEXT NOT NULL,
+  description      TEXT NULL,
+  start_year       INTEGER NULL,
+  end_year         INTEGER NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_settings_world     ON settings(world_id);
+CREATE INDEX IF NOT EXISTS idx_settings_era       ON settings(era_id);
+CREATE INDEX IF NOT EXISTS idx_settings_name      ON settings(name);
+
+CREATE TRIGGER IF NOT EXISTS trg_settings_updated_at
+AFTER UPDATE ON settings
+FOR EACH ROW
+BEGIN
+  UPDATE settings SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = NEW.id;
+END;
+
+-- Guard: settings.era_id must reference an era in the same world (when era_id is not null)
+CREATE TRIGGER IF NOT EXISTS trg_settings_world_guard
+BEFORE INSERT ON settings
+FOR EACH ROW
+WHEN NEW.era_id IS NOT NULL
+BEGIN
+  SELECT
+    CASE
+      WHEN (SELECT world_id FROM eras WHERE id = NEW.era_id) != NEW.world_id
+      THEN RAISE(ABORT, 'settings.era_id must belong to the same world')
+    END;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_settings_world_guard_upd
+BEFORE UPDATE OF era_id, world_id ON settings
+FOR EACH ROW
+WHEN NEW.era_id IS NOT NULL
+BEGIN
+  SELECT
+    CASE
+      WHEN (SELECT world_id FROM eras WHERE id = NEW.era_id) != NEW.world_id
+      THEN RAISE(ABORT, 'settings.era_id must belong to the same world')
+    END;
+END;
+
+-- =========================
+-- markers (child of worlds, optionally linked to an era)
+-- =========================
+CREATE TABLE IF NOT EXISTS markers (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id         INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  era_id           INTEGER NULL REFERENCES eras(id) ON DELETE SET NULL,
+  created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+
+  name             TEXT NOT NULL,
+  description      TEXT NULL,
+  year             INTEGER NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_markers_world      ON markers(world_id);
+CREATE INDEX IF NOT EXISTS idx_markers_era        ON markers(era_id);
+CREATE INDEX IF NOT EXISTS idx_markers_year       ON markers(year);
+CREATE INDEX IF NOT EXISTS idx_markers_name       ON markers(name);
+
+CREATE TRIGGER IF NOT EXISTS trg_markers_updated_at
+AFTER UPDATE ON markers
+FOR EACH ROW
+BEGIN
+  UPDATE markers SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = NEW.id;
+END;
+
+-- Guard: markers.era_id must reference an era in the same world (when era_id is not null)
+CREATE TRIGGER IF NOT EXISTS trg_markers_world_guard
+BEFORE INSERT ON markers
+FOR EACH ROW
+WHEN NEW.era_id IS NOT NULL
+BEGIN
+  SELECT
+    CASE
+      WHEN (SELECT world_id FROM eras WHERE id = NEW.era_id) != NEW.world_id
+      THEN RAISE(ABORT, 'markers.era_id must belong to the same world')
+    END;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_markers_world_guard_upd
+BEFORE UPDATE OF era_id, world_id ON markers
+FOR EACH ROW
+WHEN NEW.era_id IS NOT NULL
+BEGIN
+  SELECT
+    CASE
+      WHEN (SELECT world_id FROM eras WHERE id = NEW.era_id) != NEW.world_id
+      THEN RAISE(ABORT, 'markers.era_id must belong to the same world')
+    END;
+END;
+
+COMMIT;
+`);

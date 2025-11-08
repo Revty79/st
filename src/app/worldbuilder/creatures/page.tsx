@@ -1,8 +1,13 @@
-// src/app/worldbuilder/creatures/page.tsx
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import NavigationTabs from "@/components/shared/NavigationTabs";
+import SaveIndicator from "@/components/shared/SaveIndicator";
+import RecordSelector from "@/components/shared/RecordSelector";
+import FormField from "@/components/shared/FormField";
+import { useAutoSave } from "@/hooks/useAutoSave";
+import { apiClient } from "@/lib/api-client";
 
 /* ---------- local nav ---------- */
 function WBNav({
@@ -41,7 +46,7 @@ function WBNav({
   );
 }
 
-// ---------- Types ----------
+/* ---------- Types ---------- */
 type TabKey = "identity" | "stats" | "combat" | "behavior" | "preview";
 
 type Creature = {
@@ -79,316 +84,230 @@ type Creature = {
   notes?: string | null;
 };
 
-const EMPTY: Creature = { id: 0, name: "" };
+type CreatureLite = { id: number; name: string };
 
-// ---------- Small UI ----------
-const Field = React.memo(({ label, children }: { label: string; children: React.ReactNode }) => (
-  <label className="block text-sm">
-    <span className="text-neutral-400">{label}</span>
-    <div className="mt-1">{children}</div>
-  </label>
-));
+/* ---------- Constants ---------- */
+const TAB_SECTIONS = [
+  { id: "identity", label: "Identity" },
+  { id: "stats", label: "Stats" },
+  { id: "combat", label: "Combat" },
+  { id: "behavior", label: "Behavior & Lore" },
+  { id: "preview", label: "Preview" },
+];
 
-const TabButton = ({
-  k,
-  current,
-  setTab,
-  label,
-}: {
-  k: TabKey;
-  current: TabKey;
-  setTab: (t: TabKey) => void;
-  label: string;
-}) => (
-  <button
-    type="button"
-    onClick={() => setTab(k)}
-    disabled={current === k}
-    className={`rounded-xl border px-3 py-1.5 text-sm ${
-      current === k
-        ? "bg-amber-500/10 border-amber-500 text-amber-300"
-        : "border-neutral-800 hover:bg-neutral-950/40"
-    }`}
-  >
-    {label}
-  </button>
-);
+/* ---------- Helpers ---------- */
+function nz(v: string | null | undefined): string | null {
+  const s = (v ?? "").toString().trim();
+  return s === "" ? null : s;
+}
 
-// ---------- Page ----------
+function nn(v: number | null | undefined): number | null {
+  return v == null || Number.isNaN(Number(v)) ? null : Number(v);
+}
+
+/* ---------- Page ---------- */
 export default function CreaturesPage() {
-  const [items, setItems] = useState<Creature[]>([]);
-  const [activeId, setActiveId] = useState<number>(0);
-  const [active, setActive] = useState<Creature>(EMPTY);
+  // Lists/selection
+  const [creatures, setCreatures] = useState<CreatureLite[]>([]);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [creature, setCreature] = useState<Creature | null>(null);
 
+  // Draft state
+  const [draft, setDraft] = useState<Partial<Creature>>({});
+
+  // UI
   const [tab, setTab] = useState<TabKey>("identity");
-  const [filter, setFilter] = useState("");
-  const [newName, setNewName] = useState("");
-  const [rename, setRename] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ kind: "info" | "err"; text: string } | null>(null);
-
-  // Real form ref (Skills pattern)
-  const formRef = useRef<HTMLFormElement | null>(null);
-
-  // ---------- Data I/O ----------
-  const loadList = useCallback(
-    async (preserveSelection = true) => {
-      try {
-        setMsg(null);
-        const res = await fetch("/api/creatures", { cache: "no-store" });
-        if (!res.ok) throw new Error(`GET /api/creatures ${res.status}`);
-        const rows = (await res.json()) as Creature[];
-        rows.sort((a, b) => a.name.localeCompare(b.name));
-        setItems(rows);
-
-        if (rows.length === 0) {
-          setActiveId(0);
-          setActive(EMPTY);
-          return;
-        }
-
-        if (!preserveSelection || !activeId) {
-          setActiveId(rows[0].id);
-          setActive(rows[0]);
-          return;
-        }
-
-        const hit = rows.find((r) => r.id === activeId);
-        if (hit) setActive(hit);
-        else {
-          setActiveId(rows[0].id);
-          setActive(rows[0]);
-        }
-      } catch (e: any) {
-        setMsg({ kind: "err", text: e.message || String(e) });
-      }
+  // Auto-save
+  const { save, isSaving, lastSaved } = useAutoSave({
+    onSave: async () => {
+      if (!creature) return;
+      await saveCreature(creature.id);
     },
-    [activeId]
-  );
+  });
 
+  // --- load initial ---
   useEffect(() => {
-    loadList(false);
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await apiClient<{ ok: true; data: Creature[] }>("/api/creatures");
+        const lite = (res.data || []).map((c) => ({ id: c.id, name: c.name }));
+        setCreatures(lite);
+        const chosen = selectedId ?? lite[0]?.id ?? null;
+        if (chosen != null) await loadCreature(chosen);
+      } catch (e: any) {
+        alert(`Load failed: ${e.message}`);
+      } finally {
+        setLoading(false);
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const filtered = useMemo(() => {
-    const q = filter.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter((c) => c.name.toLowerCase().includes(q));
-  }, [items, filter]);
-
-  // ---------- List/select ----------
-  function select(idStr: string) {
-    const id = Number(idStr);
-    setActiveId(id);
-    const hit = items.find((c) => c.id === id) || EMPTY;
-    setActive(hit);
-    // form is keyed by activeId so defaultValues refresh without unmounting the page
+  async function loadCreature(id: number) {
+    const res = await apiClient<{ ok: true; data: Creature[] }>("/api/creatures");
+    const c = (res.data || []).find((cr) => cr.id === id);
+    if (!c) return;
+    setCreature(c);
+    setSelectedId(id);
+    setDraft(c);
   }
 
-  // ---------- Form helpers (convert FormData → payload) ----------
-  const sOrNull = (v: FormDataEntryValue | null) => {
-    const s = (v ?? "").toString().trim();
-    return s === "" ? null : s;
-  };
-  const nOrNull = (v: FormDataEntryValue | null) => {
-    const s = (v ?? "").toString().trim();
-    if (s === "") return null;
-    const n = Number(s);
-    return Number.isFinite(n) ? n : null;
-  };
-
-  function buildPayloadFromFormData(fd: FormData, id: number) {
-    return {
-      id,
-      // identity
-      alt_names: sOrNull(fd.get("alt_names")),
-      challenge_rating: sOrNull(fd.get("challenge_rating")),
-      encounter_scale: sOrNull(fd.get("encounter_scale")),
-      type: sOrNull(fd.get("type")),
-      role: sOrNull(fd.get("role")),
-      size: sOrNull(fd.get("size")),
-      genre_tags: sOrNull(fd.get("genre_tags")),
-      description_short: sOrNull(fd.get("description_short")),
-      // stats
-      strength: nOrNull(fd.get("strength")),
-      dexterity: nOrNull(fd.get("dexterity")),
-      constitution: nOrNull(fd.get("constitution")),
-      intelligence: nOrNull(fd.get("intelligence")),
-      wisdom: nOrNull(fd.get("wisdom")),
-      charisma: nOrNull(fd.get("charisma")),
-      hp_total: nOrNull(fd.get("hp_total")),
-      initiative: nOrNull(fd.get("initiative")),
-      hp_by_location: sOrNull(fd.get("hp_by_location")),
-      armor_soak: sOrNull(fd.get("armor_soak")),
-      // combat
-      attack_modes: sOrNull(fd.get("attack_modes")),
-      damage: sOrNull(fd.get("damage")),
-      range_text: sOrNull(fd.get("range_text")),
-      // behavior
-      special_abilities: sOrNull(fd.get("special_abilities")),
-      magic_resonance_interaction: sOrNull(fd.get("magic_resonance_interaction")),
-      behavior_tactics: sOrNull(fd.get("behavior_tactics")),
-      habitat: sOrNull(fd.get("habitat")),
-      diet: sOrNull(fd.get("diet")),
-      variants: sOrNull(fd.get("variants")),
-      loot_harvest: sOrNull(fd.get("loot_harvest")),
-      story_hooks: sOrNull(fd.get("story_hooks")),
-      notes: sOrNull(fd.get("notes")),
-    } as Partial<Creature> & { id: number };
+  async function refreshAndMaybeSelect(idToSelect?: number | null) {
+    const res = await apiClient<{ ok: true; data: Creature[] }>("/api/creatures");
+    const lite = (res.data || []).map((c) => ({ id: c.id, name: c.name }));
+    setCreatures(lite);
+    const pick = idToSelect ?? (lite.find((c) => c.id === selectedId)?.id ?? lite[0]?.id ?? null);
+    if (pick != null) await loadCreature(pick);
+    else {
+      setCreature(null);
+      setSelectedId(null);
+      setDraft({});
+    }
   }
 
-  const previewValue = () => {
-    const fd = new FormData(formRef.current!);
+  // --- CRUD ---
+  async function handleSelectCreature(id: number | null) {
+    if (id === null) return;
+    setLoading(true);
+    try {
+      await loadCreature(id);
+    } catch (e: any) {
+      alert(`Failed to load creature: ${e.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleCreateCreature(name: string): Promise<void> {
+    setLoading(true);
+    try {
+      const res = await apiClient<Creature>("/api/creatures", { method: "POST", body: JSON.stringify({ name }) });
+      await refreshAndMaybeSelect(res.id);
+    } catch (e: any) {
+      alert(`Create failed: ${e.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleRenameCreature(id: number, newName: string): Promise<void> {
+    setLoading(true);
+    try {
+      await apiClient("/api/creatures", { method: "POST", body: JSON.stringify({ id, name: newName }) });
+      await refreshAndMaybeSelect(id);
+    } catch (e: any) {
+      alert(`Rename failed: ${e.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDeleteCreature(id: number): Promise<void> {
+    if (!confirm(`Delete this creature?`)) return;
+    setLoading(true);
+    try {
+      await apiClient(`/api/creatures?id=${id}`, { method: "DELETE" });
+      await refreshAndMaybeSelect(null);
+    } catch (e: any) {
+      alert(`Delete failed: ${e.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /* ---------- Save ---------- */
+  async function saveCreature(id: number) {
+    await apiClient("/api/creatures", {
+      method: "POST",
+      body: JSON.stringify({
+        id,
+        alt_names: nz(draft.alt_names),
+        challenge_rating: nz(draft.challenge_rating),
+        encounter_scale: nz(draft.encounter_scale),
+        type: nz(draft.type),
+        role: nz(draft.role),
+        size: nz(draft.size),
+        genre_tags: nz(draft.genre_tags),
+        description_short: nz(draft.description_short),
+        strength: nn(draft.strength),
+        dexterity: nn(draft.dexterity),
+        constitution: nn(draft.constitution),
+        intelligence: nn(draft.intelligence),
+        wisdom: nn(draft.wisdom),
+        charisma: nn(draft.charisma),
+        hp_total: nn(draft.hp_total),
+        initiative: nn(draft.initiative),
+        hp_by_location: nz(draft.hp_by_location),
+        armor_soak: nz(draft.armor_soak),
+        attack_modes: nz(draft.attack_modes),
+        damage: nz(draft.damage),
+        range_text: nz(draft.range_text),
+        special_abilities: nz(draft.special_abilities),
+        magic_resonance_interaction: nz(draft.magic_resonance_interaction),
+        behavior_tactics: nz(draft.behavior_tactics),
+        habitat: nz(draft.habitat),
+        diet: nz(draft.diet),
+        variants: nz(draft.variants),
+        loot_harvest: nz(draft.loot_harvest),
+        story_hooks: nz(draft.story_hooks),
+        notes: nz(draft.notes),
+      }),
+    });
+  }
+
+  /* ---------- Draft setters with auto-save ---------- */
+  const setField = (key: keyof Creature, value: string) => {
+    setDraft((d) => ({ ...d, [key]: value }));
+    save();
+  };
+
+  /* ---------- Preview ---------- */
+  const previewText = useMemo(() => {
+    if (!creature) return "";
     const nv = (x: any) => (x == null || x === "" ? "—" : x);
 
     return [
-      `Creature: ${active.name}`,
-      `Alt Names: ${nv(sOrNull(fd.get("alt_names")))}`,
-      `CR / Scale / Type / Role: ${nv(sOrNull(fd.get("challenge_rating")))} / ${nv(
-        sOrNull(fd.get("encounter_scale"))
-      )} / ${nv(sOrNull(fd.get("type")))} / ${nv(sOrNull(fd.get("role")))}`,
-      `Size: ${nv(sOrNull(fd.get("size")))}   Tags: ${nv(sOrNull(fd.get("genre_tags")))}`,
+      `Creature: ${creature.name}`,
+      `Alt Names: ${nv(draft.alt_names)}`,
+      `CR / Scale / Type / Role: ${nv(draft.challenge_rating)} / ${nv(draft.encounter_scale)} / ${nv(draft.type)} / ${nv(draft.role)}`,
+      `Size: ${nv(draft.size)}   Tags: ${nv(draft.genre_tags)}`,
       "",
       "— Description —",
-      nv(sOrNull(fd.get("description_short"))),
+      nv(draft.description_short),
       "",
       "— Stats —",
-      `STR ${nv(sOrNull(fd.get("strength")))}  DEX ${nv(sOrNull(fd.get("dexterity")))}  CON ${nv(
-        sOrNull(fd.get("constitution"))
-      )}  INT ${nv(sOrNull(fd.get("intelligence")))}  WIS ${nv(sOrNull(fd.get("wisdom")))}  CHA ${nv(
-        sOrNull(fd.get("charisma"))
-      )}`,
-      `HP ${nv(sOrNull(fd.get("hp_total")))}   Initiative ${nv(sOrNull(fd.get("initiative")))}`,
-      `HP by Location: ${nv(sOrNull(fd.get("hp_by_location")))}`,
-      `Armor/Soak: ${nv(sOrNull(fd.get("armor_soak")))}`,
+      `STR ${nv(draft.strength)}  DEX ${nv(draft.dexterity)}  CON ${nv(draft.constitution)}  INT ${nv(draft.intelligence)}  WIS ${nv(draft.wisdom)}  CHA ${nv(draft.charisma)}`,
+      `HP ${nv(draft.hp_total)}   Initiative ${nv(draft.initiative)}`,
+      `HP by Location: ${nv(draft.hp_by_location)}`,
+      `Armor/Soak: ${nv(draft.armor_soak)}`,
       "",
       "— Combat —",
-      `Attack Modes: ${nv(sOrNull(fd.get("attack_modes")))}`,
-      `Damage: ${nv(sOrNull(fd.get("damage")))}`,
-      `Range: ${nv(sOrNull(fd.get("range_text")))}`,
-      `Special Abilities: ${nv(sOrNull(fd.get("special_abilities")))}`,
-      `Magic/Resonance Interaction: ${nv(sOrNull(fd.get("magic_resonance_interaction")))}`,
+      `Attack Modes: ${nv(draft.attack_modes)}`,
+      `Damage: ${nv(draft.damage)}`,
+      `Range: ${nv(draft.range_text)}`,
+      `Special Abilities: ${nv(draft.special_abilities)}`,
+      `Magic/Resonance Interaction: ${nv(draft.magic_resonance_interaction)}`,
       "",
       "— Behavior & Lore —",
-      `Behavior & Tactics: ${nv(sOrNull(fd.get("behavior_tactics")))}`,
-      `Habitat: ${nv(sOrNull(fd.get("habitat")))}`,
-      `Diet: ${nv(sOrNull(fd.get("diet")))}`,
-      `Variants: ${nv(sOrNull(fd.get("variants")))}`,
-      `Loot/Harvest: ${nv(sOrNull(fd.get("loot_harvest")))}`,
-      `Story Hooks: ${nv(sOrNull(fd.get("story_hooks")))}`,
-      `Notes: ${nv(sOrNull(fd.get("notes")))}`,
+      `Behavior & Tactics: ${nv(draft.behavior_tactics)}`,
+      `Habitat: ${nv(draft.habitat)}`,
+      `Diet: ${nv(draft.diet)}`,
+      `Variants: ${nv(draft.variants)}`,
+      `Loot/Harvest: ${nv(draft.loot_harvest)}`,
+      `Story Hooks: ${nv(draft.story_hooks)}`,
+      `Notes: ${nv(draft.notes)}`,
     ].join("\n");
-  };
+  }, [creature, draft]);
 
-  // ---------- Mutations ----------
-  async function create() {
-    if (!newName.trim()) return;
-    try {
-      setBusy(true);
-      const res = await fetch("/api/creatures", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newName.trim() }),
-      });
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error(j?.error || `POST /api/creatures ${res.status}`);
-      }
-      const created = (await res.json()) as Creature;
-      setNewName("");
-      await loadList(false);
-      setActiveId(created.id);
-      setActive(created);
-      setMsg({ kind: "info", text: "Creature created." });
-    } catch (e: any) {
-      setMsg({ kind: "err", text: e.message || String(e) });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function applyRename() {
-    if (!activeId || !rename.trim()) return;
-    try {
-      setBusy(true);
-      const res = await fetch("/api/creatures", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: activeId, name: rename.trim() }),
-      });
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error(j?.error || `POST /api/creatures rename ${res.status}`);
-      }
-      const updated = (await res.json()) as Creature;
-      setRename("");
-      await loadList(false);
-      setActiveId(updated.id);
-      setActive((prev) => ({ ...prev, name: updated.name }));
-      setMsg({ kind: "info", text: "Renamed." });
-    } catch (e: any) {
-      setMsg({ kind: "err", text: e.message || String(e) });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function save() {
-    if (!activeId) return;
-    try {
-      setBusy(true);
-      const fd = new FormData(formRef.current!);
-      const payload = buildPayloadFromFormData(fd, activeId);
-      const res = await fetch("/api/creatures", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error(j?.error || `POST /api/creatures save ${res.status}`);
-      }
-      const updated = (await res.json()) as Creature;
-      await loadList(false);
-      setActiveId(updated.id);
-      setActive(updated);
-      setMsg({ kind: "info", text: "Saved." });
-    } catch (e: any) {
-      setMsg({ kind: "err", text: e.message || String(e) });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function remove() {
-    if (!activeId) return;
-    const current = items.find((i) => i.id === activeId);
-    if (!current) return;
-    if (!confirm(`Delete ${current.name}?`)) return;
-    try {
-      setBusy(true);
-      const res = await fetch(`/api/creatures?id=${activeId}`, { method: "DELETE" });
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error(j?.error || `DELETE /api/creatures ${res.status}`);
-      }
-      await loadList(false);
-      setMsg({ kind: "info", text: "Deleted." });
-    } catch (e: any) {
-      setMsg({ kind: "err", text: e.message || String(e) });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  // ---------- Render ----------
+  /* ---------- render ---------- */
   return (
-    <main className="min-h-screen px-6 py-8">
+    <main className="min-h-screen px-6 py-10">
       {/* Header */}
       <header className="max-w-7xl mx-auto mb-8">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <Link
               href="/worldbuilder"
@@ -396,182 +315,314 @@ export default function CreaturesPage() {
             >
               ← World Builder
             </Link>
-            <h1 className="font-evanescent st-title-gradient text-4xl sm:text-5xl tracking-tight">Creatures</h1>
+            <h1 className="font-evanescent st-title-gradient text-4xl sm:text-5xl tracking-tight">
+              Creature Designer
+            </h1>
           </div>
-          <WBNav current="creatures" />
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => save()}
+              disabled={!creature || isSaving}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-white rounded-lg transition-colors font-medium text-sm"
+            >
+              Save Now
+            </button>
+            <SaveIndicator isSaving={isSaving} lastSaved={lastSaved} />
+            <WBNav current="creatures" />
+          </div>
         </div>
+        <p className="text-sm text-zinc-300">
+          Design monsters, NPCs, and creatures. Changes save automatically.
+        </p>
       </header>
 
-      {/* Controls */}
-      <section className="max-w-7xl mx-auto mb-4 flex flex-wrap items-center gap-3">
-        <label className="text-sm text-neutral-400">Creature:</label>
-        <select
-          value={activeId ? String(activeId) : ""}
-          onChange={(e) => select(e.target.value)}
-          className="min-w-64 rounded-xl border border-neutral-800 bg-neutral-950/40 px-3 py-2"
-        >
-          {filtered.map((c) => (
-            <option key={c.id} value={String(c.id)}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+      {/* Record Selector */}
+      <div className="max-w-7xl mx-auto mb-6">
+        <RecordSelector
+          records={creatures}
+          selectedId={selectedId}
+          onSelect={handleSelectCreature}
+          onCreate={handleCreateCreature}
+          onRename={handleRenameCreature}
+          onDelete={handleDeleteCreature}
+          loading={loading}
+          recordType="Creature"
+        />
+      </div>
 
-        <input
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          placeholder="Search…"
-          className="w-52 rounded-xl border border-neutral-800 bg-neutral-950/40 px-3 py-2"
+      {/* Content */}
+      <section className="max-w-7xl mx-auto rounded-2xl border border-white/15 bg-white/10 backdrop-blur-sm overflow-hidden">
+        <NavigationTabs
+          sections={TAB_SECTIONS}
+          currentSection={tab}
+          onSectionChange={(id) => setTab(id as TabKey)}
         />
 
-        <input
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          placeholder="New creature name…"
-          className="w-56 rounded-xl border border-neutral-800 bg-neutral-950/40 px-3 py-2"
-        />
-        <button
-          type="button"
-          onClick={create}
-          disabled={busy}
-          className="rounded-xl border border-neutral-800 px-3 py-2 text-sm hover:bg-neutral-900"
-        >
-          Add
-        </button>
-
-        <input
-          value={rename}
-          onChange={(e) => setRename(e.target.value)}
-          placeholder={active?.name ? `Rename “${active.name}”…` : "Rename…"}
-          className="w-56 rounded-xl border border-neutral-800 bg-neutral-950/40 px-3 py-2"
-        />
-        <button
-          type="button"
-          onClick={applyRename}
-          disabled={busy || !activeId}
-          className="rounded-xl border border-neutral-800 px-3 py-2 text-sm hover:bg-neutral-900"
-        >
-          Apply
-        </button>
-
-        <div className="ml-auto flex items-center gap-2">
-          <button
-            type="button"
-            onClick={save}
-            disabled={busy || !activeId}
-            className="rounded-xl border border-amber-600/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-300 hover:bg-amber-500/20"
-          >
-            Save
-          </button>
-          <button
-            type="button"
-            onClick={remove}
-            disabled={!activeId}
-            className="rounded-xl border border-red-700/40 bg-red-600/10 px-3 py-2 text-sm text-red-300 hover:bg-red-600/20"
-          >
-            Delete
-          </button>
-        </div>
-      </section>
-
-      {/* Editor — form is keyed to activeId so defaultValues refresh cleanly */}
-      <section className="max-w-7xl mx-auto rounded-2xl border border-neutral-800 bg-neutral-950/30 p-4">
-        <form ref={formRef} key={activeId || "editor"}>
-          <div className="mb-4 flex flex-wrap gap-2">
-            <TabButton k="identity" current={tab} setTab={setTab} label="Identity" />
-            <TabButton k="stats" current={tab} setTab={setTab} label="Stats" />
-            <TabButton k="combat" current={tab} setTab={setTab} label="Combat" />
-            <TabButton k="behavior" current={tab} setTab={setTab} label="Behavior/Lore" />
-            <TabButton k="preview" current={tab} setTab={setTab} label="Preview" />
-          </div>
-
-          <div className="border border-neutral-800 rounded-2xl p-4 bg-neutral-950/30">
-            {/* Identity */}
-            <div className={tab === "identity" ? "block" : "hidden"}>
-              <div className="grid gap-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Field label="Alt Names">
-                    <input name="alt_names" defaultValue={active.alt_names ?? ""} className="w-full rounded-xl border border-neutral-800 bg-neutral-950/40 px-3 py-2" />
-                  </Field>
-                  <Field label="Challenge Rating">
-                    <input name="challenge_rating" defaultValue={active.challenge_rating ?? ""} className="w-full rounded-xl border border-neutral-800 bg-neutral-950/40 px-3 py-2" />
-                  </Field>
-                  <Field label="Encounter Scale">
-                    <input name="encounter_scale" defaultValue={active.encounter_scale ?? ""} className="w-full rounded-xl border border-neutral-800 bg-neutral-950/40 px-3 py-2" />
-                  </Field>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Field label="Type"><input name="type" defaultValue={active.type ?? ""} className="w-full rounded-xl border border-neutral-800 bg-neutral-950/40 px-3 py-2" /></Field>
-                  <Field label="Role"><input name="role" defaultValue={active.role ?? ""} className="w-full rounded-xl border border-neutral-800 bg-neutral-950/40 px-3 py-2" /></Field>
-                  <Field label="Size"><input name="size" defaultValue={active.size ?? ""} className="w-full rounded-xl border border-neutral-800 bg-neutral-950/40 px-3 py-2" /></Field>
-                </div>
-                <Field label="Genre Tags (comma-separated)">
-                  <textarea name="genre_tags" defaultValue={active.genre_tags ?? ""} rows={2} className="w-full rounded-xl border border-neutral-800 bg-neutral-950/40 px-3 py-2" />
-                </Field>
-                <Field label="Description (Short)">
-                  <textarea name="description_short" defaultValue={active.description_short ?? ""} rows={4} className="w-full rounded-xl border border-neutral-800 bg-neutral-950/40 px-3 py-2" />
-                </Field>
-              </div>
+        <div className="p-6">
+          {/* Identity */}
+          {tab === "identity" && (
+            <div className="grid gap-4">
+              {!creature ? (
+                <div className="p-4 text-zinc-400">Select or create a creature to get started.</div>
+              ) : (
+                <>
+                  <FormField
+                    label="Alt Names"
+                    value={draft.alt_names ?? ""}
+                    onCommit={(v) => setField("alt_names", v)}
+                    type="text"
+                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      label="Challenge Rating"
+                      value={draft.challenge_rating ?? ""}
+                      onCommit={(v) => setField("challenge_rating", v)}
+                      type="text"
+                    />
+                    <FormField
+                      label="Encounter Scale"
+                      value={draft.encounter_scale ?? ""}
+                      onCommit={(v) => setField("encounter_scale", v)}
+                      type="text"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      label="Type"
+                      value={draft.type ?? ""}
+                      onCommit={(v) => setField("type", v)}
+                      type="text"
+                    />
+                    <FormField
+                      label="Role"
+                      value={draft.role ?? ""}
+                      onCommit={(v) => setField("role", v)}
+                      type="text"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      label="Size"
+                      value={draft.size ?? ""}
+                      onCommit={(v) => setField("size", v)}
+                      type="text"
+                    />
+                    <FormField
+                      label="Genre Tags"
+                      value={draft.genre_tags ?? ""}
+                      onCommit={(v) => setField("genre_tags", v)}
+                      type="text"
+                    />
+                  </div>
+                  <FormField
+                    label="Description"
+                    value={draft.description_short ?? ""}
+                    onCommit={(v) => setField("description_short", v)}
+                    type="textarea"
+                    rows={4}
+                  />
+                </>
+              )}
             </div>
+          )}
 
-            {/* Stats */}
-            <div className={tab === "stats" ? "block" : "hidden"}>
-              <div className="grid gap-4">
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
-                  <Field label="STR"><input type="number" name="strength" defaultValue={active.strength ?? ""} className="w-full rounded-xl border border-neutral-800 bg-neutral-950/40 px-3 py-2" /></Field>
-                  <Field label="DEX"><input type="number" name="dexterity" defaultValue={active.dexterity ?? ""} className="w-full rounded-xl border border-neutral-800 bg-neutral-950/40 px-3 py-2" /></Field>
-                  <Field label="CON"><input type="number" name="constitution" defaultValue={active.constitution ?? ""} className="w-full rounded-xl border border-neutral-800 bg-neutral-950/40 px-3 py-2" /></Field>
-                  <Field label="INT"><input type="number" name="intelligence" defaultValue={active.intelligence ?? ""} className="w-full rounded-xl border border-neutral-800 bg-neutral-950/40 px-3 py-2" /></Field>
-                  <Field label="WIS"><input type="number" name="wisdom" defaultValue={active.wisdom ?? ""} className="w-full rounded-xl border border-neutral-800 bg-neutral-950/40 px-3 py-2" /></Field>
-                  <Field label="CHA"><input type="number" name="charisma" defaultValue={active.charisma ?? ""} className="w-full rounded-xl border border-neutral-800 bg-neutral-950/40 px-3 py-2" /></Field>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Field label="HP (Total)"><input type="number" name="hp_total" defaultValue={active.hp_total ?? ""} className="w-full rounded-xl border border-neutral-800 bg-neutral-950/40 px-3 py-2" /></Field>
-                  <Field label="Initiative"><input type="number" name="initiative" defaultValue={active.initiative ?? ""} className="w-full rounded-xl border border-neutral-800 bg-neutral-950/40 px-3 py-2" /></Field>
-                </div>
-                <Field label="HP by Location"><textarea name="hp_by_location" defaultValue={active.hp_by_location ?? ""} rows={3} className="w-full rounded-xl border border-neutral-800 bg-neutral-950/40 px-3 py-2" /></Field>
-                <Field label="Armor/Soak"><textarea name="armor_soak" defaultValue={active.armor_soak ?? ""} rows={3} className="w-full rounded-xl border border-neutral-800 bg-neutral-950/40 px-3 py-2" /></Field>
-              </div>
+          {/* Stats */}
+          {tab === "stats" && (
+            <div className="grid gap-6">
+              {!creature ? (
+                <div className="p-4 text-zinc-400">Select or create a creature to get started.</div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-3 gap-4">
+                    <FormField
+                      label="Strength"
+                      value={String(draft.strength ?? "")}
+                      onCommit={(v) => setField("strength", v)}
+                      type="number"
+                    />
+                    <FormField
+                      label="Dexterity"
+                      value={String(draft.dexterity ?? "")}
+                      onCommit={(v) => setField("dexterity", v)}
+                      type="number"
+                    />
+                    <FormField
+                      label="Constitution"
+                      value={String(draft.constitution ?? "")}
+                      onCommit={(v) => setField("constitution", v)}
+                      type="number"
+                    />
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <FormField
+                      label="Intelligence"
+                      value={String(draft.intelligence ?? "")}
+                      onCommit={(v) => setField("intelligence", v)}
+                      type="number"
+                    />
+                    <FormField
+                      label="Wisdom"
+                      value={String(draft.wisdom ?? "")}
+                      onCommit={(v) => setField("wisdom", v)}
+                      type="number"
+                    />
+                    <FormField
+                      label="Charisma"
+                      value={String(draft.charisma ?? "")}
+                      onCommit={(v) => setField("charisma", v)}
+                      type="number"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      label="HP Total"
+                      value={String(draft.hp_total ?? "")}
+                      onCommit={(v) => setField("hp_total", v)}
+                      type="number"
+                    />
+                    <FormField
+                      label="Initiative"
+                      value={String(draft.initiative ?? "")}
+                      onCommit={(v) => setField("initiative", v)}
+                      type="number"
+                    />
+                  </div>
+                  <FormField
+                    label="HP by Location"
+                    value={draft.hp_by_location ?? ""}
+                    onCommit={(v) => setField("hp_by_location", v)}
+                    type="textarea"
+                    rows={2}
+                  />
+                  <FormField
+                    label="Armor/Soak"
+                    value={draft.armor_soak ?? ""}
+                    onCommit={(v) => setField("armor_soak", v)}
+                    type="textarea"
+                    rows={2}
+                  />
+                </>
+              )}
             </div>
+          )}
 
-            {/* Combat */}
-            <div className={tab === "combat" ? "block" : "hidden"}>
-              <div className="grid gap-4">
-                <Field label="Attack Modes"><textarea name="attack_modes" defaultValue={active.attack_modes ?? ""} rows={4} className="w-full rounded-xl border border-neutral-800 bg-neutral-950/40 px-3 py-2" /></Field>
-                <Field label="Damage"><textarea name="damage" defaultValue={active.damage ?? ""} rows={3} className="w-full rounded-xl border border-neutral-800 bg-neutral-950/40 px-3 py-2" /></Field>
-                <Field label="Range"><textarea name="range_text" defaultValue={active.range_text ?? ""} rows={2} className="w-full rounded-xl border border-neutral-800 bg-neutral-950/40 px-3 py-2" /></Field>
-                <Field label="Special Abilities"><textarea name="special_abilities" defaultValue={active.special_abilities ?? ""} rows={4} className="w-full rounded-xl border border-neutral-800 bg-neutral-950/40 px-3 py-2" /></Field>
-                <Field label="Magic/Resonance Interaction"><textarea name="magic_resonance_interaction" defaultValue={active.magic_resonance_interaction ?? ""} rows={3} className="w-full rounded-xl border border-neutral-800 bg-neutral-950/40 px-3 py-2" /></Field>
-              </div>
+          {/* Combat */}
+          {tab === "combat" && (
+            <div className="grid gap-4">
+              {!creature ? (
+                <div className="p-4 text-zinc-400">Select or create a creature to get started.</div>
+              ) : (
+                <>
+                  <FormField
+                    label="Attack Modes"
+                    value={draft.attack_modes ?? ""}
+                    onCommit={(v) => setField("attack_modes", v)}
+                    type="textarea"
+                    rows={3}
+                  />
+                  <FormField
+                    label="Damage"
+                    value={draft.damage ?? ""}
+                    onCommit={(v) => setField("damage", v)}
+                    type="textarea"
+                    rows={2}
+                  />
+                  <FormField
+                    label="Range"
+                    value={draft.range_text ?? ""}
+                    onCommit={(v) => setField("range_text", v)}
+                    type="text"
+                  />
+                  <FormField
+                    label="Special Abilities"
+                    value={draft.special_abilities ?? ""}
+                    onCommit={(v) => setField("special_abilities", v)}
+                    type="textarea"
+                    rows={4}
+                  />
+                  <FormField
+                    label="Magic/Resonance Interaction"
+                    value={draft.magic_resonance_interaction ?? ""}
+                    onCommit={(v) => setField("magic_resonance_interaction", v)}
+                    type="textarea"
+                    rows={3}
+                  />
+                </>
+              )}
             </div>
+          )}
 
-            {/* Behavior */}
-            <div className={tab === "behavior" ? "block" : "hidden"}>
-              <div className="grid gap-4">
-                <Field label="Behavior & Tactics"><textarea name="behavior_tactics" defaultValue={active.behavior_tactics ?? ""} rows={4} className="w-full rounded-xl border border-neutral-800 bg-neutral-950/40 px-3 py-2" /></Field>
-                <Field label="Habitat"><textarea name="habitat" defaultValue={active.habitat ?? ""} rows={3} className="w-full rounded-xl border border-neutral-800 bg-neutral-950/40 px-3 py-2" /></Field>
-                <Field label="Diet"><textarea name="diet" defaultValue={active.diet ?? ""} rows={3} className="w-full rounded-xl border border-neutral-800 bg-neutral-950/40 px-3 py-2" /></Field>
-                <Field label="Variants"><textarea name="variants" defaultValue={active.variants ?? ""} rows={3} className="w-full rounded-xl border border-neutral-800 bg-neutral-950/40 px-3 py-2" /></Field>
-                <Field label="Loot/Harvest"><textarea name="loot_harvest" defaultValue={active.loot_harvest ?? ""} rows={3} className="w-full rounded-xl border border-neutral-800 bg-neutral-950/40 px-3 py-2" /></Field>
-                <Field label="Story Hooks"><textarea name="story_hooks" defaultValue={active.story_hooks ?? ""} rows={4} className="w-full rounded-xl border border-neutral-800 bg-neutral-950/40 px-3 py-2" /></Field>
-                <Field label="Notes"><textarea name="notes" defaultValue={active.notes ?? ""} rows={3} className="w-full rounded-xl border border-neutral-800 bg-neutral-950/40 px-3 py-2" /></Field>
-              </div>
+          {/* Behavior & Lore */}
+          {tab === "behavior" && (
+            <div className="grid gap-4">
+              {!creature ? (
+                <div className="p-4 text-zinc-400">Select or create a creature to get started.</div>
+              ) : (
+                <>
+                  <FormField
+                    label="Behavior & Tactics"
+                    value={draft.behavior_tactics ?? ""}
+                    onCommit={(v) => setField("behavior_tactics", v)}
+                    type="textarea"
+                    rows={4}
+                  />
+                  <FormField
+                    label="Habitat"
+                    value={draft.habitat ?? ""}
+                    onCommit={(v) => setField("habitat", v)}
+                    type="textarea"
+                    rows={2}
+                  />
+                  <FormField
+                    label="Diet"
+                    value={draft.diet ?? ""}
+                    onCommit={(v) => setField("diet", v)}
+                    type="textarea"
+                    rows={2}
+                  />
+                  <FormField
+                    label="Variants"
+                    value={draft.variants ?? ""}
+                    onCommit={(v) => setField("variants", v)}
+                    type="textarea"
+                    rows={3}
+                  />
+                  <FormField
+                    label="Loot/Harvest"
+                    value={draft.loot_harvest ?? ""}
+                    onCommit={(v) => setField("loot_harvest", v)}
+                    type="textarea"
+                    rows={3}
+                  />
+                  <FormField
+                    label="Story Hooks"
+                    value={draft.story_hooks ?? ""}
+                    onCommit={(v) => setField("story_hooks", v)}
+                    type="textarea"
+                    rows={4}
+                  />
+                  <FormField
+                    label="Notes"
+                    value={draft.notes ?? ""}
+                    onCommit={(v) => setField("notes", v)}
+                    type="textarea"
+                    rows={4}
+                  />
+                </>
+              )}
             </div>
+          )}
 
-            {/* Preview */}
-            <div className={tab === "preview" ? "block" : "hidden"}>
+          {/* Preview */}
+          {tab === "preview" && (
+            <div>
               <textarea
                 readOnly
-                value={formRef.current ? previewValue() : ""}
-                className="w-full h-[520px] rounded-xl border border-neutral-800 bg-neutral-950/50 px-3 py-2 text-sm"
+                value={previewText}
+                className="w-full h-[600px] rounded-lg border border-white/15 bg-neutral-950/50 px-4 py-3 text-sm text-zinc-200 font-mono"
               />
             </div>
-          </div>
-        </form>
-
-        <div className="mt-3 min-h-6 text-sm">
-          {msg?.kind === "err" && <span className="text-red-400">{msg.text}</span>}
-          {msg?.kind === "info" && <span className="text-emerald-400">{msg.text}</span>}
+          )}
         </div>
       </section>
     </main>

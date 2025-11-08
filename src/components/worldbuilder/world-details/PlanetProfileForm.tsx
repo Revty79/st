@@ -13,15 +13,15 @@ const Select = ({ value, onCommit, options, placeholder }: {
     <select
       value={value}
       onChange={(e) => onCommit(e.target.value)}
-      className="w-full rounded-lg bg-white/10 text-white border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400"
+      className="w-full rounded-lg bg-white/10 text-zinc-200 border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400"
     >
       {placeholder && (
-        <option value="" disabled className="bg-zinc-800 text-white">
+        <option value="" disabled className="bg-zinc-800 text-zinc-400">
           {placeholder}
         </option>
       )}
       {options.map((option) => (
-        <option key={option.value} value={option.value} className="bg-zinc-800 text-white">
+        <option key={option.value} value={option.value} className="bg-zinc-800 text-zinc-200">
           {option.label}
         </option>
       ))}
@@ -75,7 +75,7 @@ const NumberInput = ({ value, onCommit, placeholder, min, max, step = 1 }: {
       onChange={handleChange}
       onBlur={handleBlur}
       placeholder={placeholder}
-      className="w-full rounded-lg bg-white/10 text-white placeholder:text-zinc-200 border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400"
+      className="w-full rounded-lg bg-white/10 text-white placeholder:text-white border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400"
     />
   );
 };
@@ -166,7 +166,7 @@ const MultiSelect = ({ values, onCommit, options, placeholder }: {
         onClick={() => setIsOpen(!isOpen)}
         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-left flex justify-between items-center"
       >
-        <span className="text-zinc-500">
+        <span className="text-white">
           {values.length === 0 ? placeholder : `${values.length} selected`}
         </span>
         <span>{isOpen ? "▲" : "▼"}</span>
@@ -269,7 +269,7 @@ export default function PlanetProfileForm({ data, onUpdate }: PlanetProfileFormP
     <div className="space-y-6">
       <div className="border-b border-white/20 pb-4">
         <h2 className="text-xl font-semibold text-white">Planet Profile — Player Summary; Details Collapsed</h2>
-        <p className="text-sm text-zinc-200 mt-1">
+        <p className="text-sm text-white mt-1">
           Travel, survival, and environmental hooks. Physical foundation for adventures.
         </p>
       </div>
@@ -303,7 +303,7 @@ export default function PlanetProfileForm({ data, onUpdate }: PlanetProfileFormP
           <label className="block text-sm font-medium text-white mb-2">
             Size/Class
           </label>
-          <p className="text-xs text-zinc-500 mb-2">
+          <p className="text-xs text-white mb-2">
             Free text like "Earth-like", "Radius ~6,400 km"
           </p>
           <Input
@@ -318,7 +318,7 @@ export default function PlanetProfileForm({ data, onUpdate }: PlanetProfileFormP
           <label className="block text-sm font-medium text-white mb-2">
             Gravity vs Earth
           </label>
-          <p className="text-xs text-zinc-500 mb-2">
+          <p className="text-xs text-white mb-2">
             Float 0.1–5.0 (1.0 = Earth-like)
           </p>
           <NumberInput
@@ -336,7 +336,7 @@ export default function PlanetProfileForm({ data, onUpdate }: PlanetProfileFormP
           <label className="block text-sm font-medium text-white mb-2">
             Water Coverage %
           </label>
-          <p className="text-xs text-zinc-500 mb-2">
+          <p className="text-xs text-white mb-2">
             0–100 percent of surface covered by water
           </p>
           <NumberInput
@@ -354,7 +354,7 @@ export default function PlanetProfileForm({ data, onUpdate }: PlanetProfileFormP
         <label className="block text-sm font-medium text-white mb-2">
           Climate Bands
         </label>
-        <p className="text-xs text-zinc-500 mb-2">
+        <p className="text-xs text-white mb-2">
           Multi-select climate types present on your world.
         </p>
         <MultiSelect
@@ -370,7 +370,7 @@ export default function PlanetProfileForm({ data, onUpdate }: PlanetProfileFormP
         <label className="block text-sm font-medium text-white mb-2">
           Tectonic Activity
         </label>
-        <p className="text-xs text-zinc-500 mb-2">
+        <p className="text-xs text-white mb-2">
           Level of geological activity affecting the world.
         </p>
         <Select

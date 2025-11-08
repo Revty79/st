@@ -1,7 +1,13 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import NavigationTabs from "@/components/shared/NavigationTabs";
+import SaveIndicator from "@/components/shared/SaveIndicator";
+import RecordSelector from "@/components/shared/RecordSelector";
+import FormField from "@/components/shared/FormField";
+import { useAutoSave } from "@/hooks/useAutoSave";
+import { apiClient } from "@/lib/api-client";
 
 /* ---------- local nav ---------- */
 function WBNav({
@@ -97,18 +103,14 @@ const MAX_BONUS_SKILLS = 7;
 const MAX_SPECIALS = 5;
 const SIZE_OPTIONS = ["tiny", "small", "average", "large", "gigantic", "titan"] as const;
 
-/* ---------- Helpers ---------- */
-async function api<T = any>(input: RequestInfo, init?: RequestInit): Promise<T> {
-  const res = await fetch(input, {
-    cache: "no-store",
-    headers: { "Content-Type": "application/json" },
-    ...init,
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok || data?.ok === false) throw new Error(data?.error || `HTTP ${res.status}`);
-  return data as T;
-}
+const TAB_SECTIONS = [
+  { id: "identity", label: "Identity & Lore" },
+  { id: "attributes", label: "Attributes" },
+  { id: "bonuses", label: "Bonuses" },
+  { id: "preview", label: "Preview" },
+];
 
+/* ---------- Helpers ---------- */
 function padRows(rows: BonusItem[] | null | undefined, max: number): BonusItem[] {
   const base = (rows ?? []).slice().sort((a, b) => a.slot_idx - b.slot_idx);
   while (base.length < max) {
@@ -117,13 +119,20 @@ function padRows(rows: BonusItem[] | null | undefined, max: number): BonusItem[]
   return base.slice(0, max);
 }
 
+function nz<T extends string | null | undefined>(v: T): string | null {
+  const s = (v ?? "").toString().trim();
+  return s === "" ? null : s;
+}
+
+function nn<T extends number | null | undefined>(v: T): number | null {
+  return v == null || Number.isNaN(Number(v)) ? null : Math.trunc(Number(v));
+}
+
 /* ---------- Page ---------- */
 export default function RacesPage() {
   // Lists/selection
   const [racesLite, setRacesLite] = useState<RaceLite[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
-
-  // Server object (for name/header, etc.)
   const [race, setRace] = useState<Race | null>(null);
 
   // Drafts that persist across tab switches
@@ -139,23 +148,27 @@ export default function RacesPage() {
   // UI
   const [tab, setTab] = useState<TabKey>("identity");
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [renameValue, setRenameValue] = useState("");
-  useEffect(() => setRenameValue(""), [selectedId]);
+
+  // Auto-save
+  const { save, isSaving, lastSaved } = useAutoSave({
+    onSave: async () => {
+      if (!race) return;
+      await saveAllSections(race.id);
+    },
+  });
 
   // --- load initial ---
   useEffect(() => {
     (async () => {
       setLoading(true);
       try {
-        const listRes = await api<{ ok: true; data: RaceLite[] }>("/api/races?lite=1");
+        const listRes = await apiClient<{ ok: true; data: RaceLite[] }>("/api/races?lite=1");
         setRacesLite(listRes.data);
         const chosen = selectedId ?? listRes.data[0]?.id ?? null;
         if (chosen != null) await loadRace(chosen);
         const [sk, sp] = await Promise.all([
-          api<{ ok: true; data: SkillOption[] }>("/api/races?candidates=skills"),
-          api<{ ok: true; data: SkillOption[] }>("/api/races?candidates=specials"),
+          apiClient<{ ok: true; data: SkillOption[] }>("/api/races?candidates=skills"),
+          apiClient<{ ok: true; data: SkillOption[] }>("/api/races?candidates=specials"),
         ]);
         setSkillCandidates(sk.data);
         setSpecialCandidates(sp.data);
@@ -169,7 +182,7 @@ export default function RacesPage() {
   }, []);
 
   async function loadRace(id: number) {
-    const full = await api<{ ok: true; data: Race }>(`/api/races?id=${id}`);
+    const full = await apiClient<{ ok: true; data: Race }>(`/api/races?id=${id}`);
     const r = full.data;
     setRace(r);
     setSelectedId(id);
@@ -207,10 +220,10 @@ export default function RacesPage() {
   }
 
   async function refreshLiteAndMaybeSelect(idToSelect?: number | null) {
-    const listRes = await api<{ ok: true; data: RaceLite[] }>("/api/races?lite=1");
+    const listRes = await apiClient<{ ok: true; data: RaceLite[] }>("/api/races?lite=1");
     setRacesLite(listRes.data);
     const pick =
-      idToSelect ?? (listRes.data.find((r) => r.id === selectedId)?.id ?? listRes.data[0]?.id ?? null);
+      idToSelect ?? (listRes.data.find((r: RaceLite) => r.id === selectedId)?.id ?? listRes.data[0]?.id ?? null);
     if (pick != null) await loadRace(pick);
     else {
       setRace(null);
@@ -222,10 +235,9 @@ export default function RacesPage() {
     }
   }
 
-  // --- selectors/CRUD ---
-  async function onSelectRace(idStr: string) {
-    const id = Number(idStr);
-    if (!Number.isFinite(id)) return;
+  // --- CRUD ---
+  async function handleSelectRace(id: number | null) {
+    if (id === null) return;
     setLoading(true);
     try {
       await loadRace(id);
@@ -236,13 +248,10 @@ export default function RacesPage() {
     }
   }
 
-  async function onCreateRace() {
-    const name = (newName || "").trim();
-    if (!name) return;
+  async function handleCreateRace(name: string): Promise<void> {
     setLoading(true);
     try {
-      await api("/api/races", { method: "POST", body: JSON.stringify({ name }) });
-      setNewName("");
+      await apiClient("/api/races", { method: "POST", body: JSON.stringify({ name }) });
       await refreshLiteAndMaybeSelect(null);
     } catch (e: any) {
       alert(`Create failed: ${e.message}`);
@@ -251,15 +260,11 @@ export default function RacesPage() {
     }
   }
 
-  async function onRenameRace() {
-    if (!race) return;
-    const nm = (renameValue || "").trim();
-    if (!nm) return;
+  async function handleRenameRace(id: number, newName: string): Promise<void> {
     setLoading(true);
     try {
-      await api("/api/races", { method: "PUT", body: JSON.stringify({ id: race.id, rename_to: nm }) });
-      setRenameValue("");
-      await refreshLiteAndMaybeSelect(race.id);
+      await apiClient("/api/races", { method: "PUT", body: JSON.stringify({ id, rename_to: newName }) });
+      await refreshLiteAndMaybeSelect(id);
     } catch (e: any) {
       alert(`Rename failed: ${e.message}`);
     } finally {
@@ -267,12 +272,11 @@ export default function RacesPage() {
     }
   }
 
-  async function onDeleteRace() {
-    if (!race) return;
-    if (!confirm(`Delete race "${race.name}"?`)) return;
+  async function handleDeleteRace(id: number): Promise<void> {
+    if (!confirm(`Delete this race?`)) return;
     setLoading(true);
     try {
-      await api("/api/races", { method: "DELETE", body: JSON.stringify({ id: race.id }) });
+      await apiClient("/api/races", { method: "DELETE", body: JSON.stringify({ id }) });
       await refreshLiteAndMaybeSelect(null);
     } catch (e: any) {
       alert(`Delete failed: ${e.message}`);
@@ -281,99 +285,94 @@ export default function RacesPage() {
     }
   }
 
-  /* ---------- Save (uses drafts, not FormData) ---------- */
-  async function onSave() {
-    if (!race) return;
-    setSaving(true);
-    try {
-      // definition
-      await api("/api/races", {
-        method: "PUT",
-        body: JSON.stringify({
-          id: race.id,
-          section: "definition",
-          payload: {
-            legacy_description: nz(draftDef.legacy_description),
-            physical_characteristics: nz(draftDef.physical_characteristics),
-            physical_description: nz(draftDef.physical_description),
-            racial_quirk: nz(draftDef.racial_quirk),
-            quirk_success_effect: nz(draftDef.quirk_success_effect),
-            quirk_failure_effect: nz(draftDef.quirk_failure_effect),
-            common_languages_known: nz(draftDef.common_languages_known),
-            common_archetypes: nz(draftDef.common_archetypes),
-            examples_by_genre: nz(draftDef.examples_by_genre),
-            cultural_mindset: nz(draftDef.cultural_mindset),
-            outlook_on_magic: nz(draftDef.outlook_on_magic),
-          },
-        }),
-      });
+  /* ---------- Save all sections ---------- */
+  async function saveAllSections(raceId: number) {
+    // definition
+    await apiClient("/api/races", {
+      method: "PUT",
+      body: JSON.stringify({
+        id: raceId,
+        section: "definition",
+        payload: {
+          legacy_description: nz(draftDef.legacy_description),
+          physical_characteristics: nz(draftDef.physical_characteristics),
+          physical_description: nz(draftDef.physical_description),
+          racial_quirk: nz(draftDef.racial_quirk),
+          quirk_success_effect: nz(draftDef.quirk_success_effect),
+          quirk_failure_effect: nz(draftDef.quirk_failure_effect),
+          common_languages_known: nz(draftDef.common_languages_known),
+          common_archetypes: nz(draftDef.common_archetypes),
+          examples_by_genre: nz(draftDef.examples_by_genre),
+          cultural_mindset: nz(draftDef.cultural_mindset),
+          outlook_on_magic: nz(draftDef.outlook_on_magic),
+        },
+      }),
+    });
 
-      // attributes
-      await api("/api/races", {
-        method: "PUT",
-        body: JSON.stringify({
-          id: race.id,
-          section: "attributes",
-          payload: {
-            age_range: nz(draftAttr.age_range),
-            size: nz(draftAttr.size),
-            strength_max: nn(draftAttr.strength_max),
-            dexterity_max: nn(draftAttr.dexterity_max),
-            constitution_max: nn(draftAttr.constitution_max),
-            intelligence_max: nn(draftAttr.intelligence_max),
-            wisdom_max: nn(draftAttr.wisdom_max),
-            charisma_max: nn(draftAttr.charisma_max),
-            base_magic: nn(draftAttr.base_magic),
-            base_movement: nn(draftAttr.base_movement),
-          },
-        }),
-      });
+    // attributes
+    await apiClient("/api/races", {
+      method: "PUT",
+      body: JSON.stringify({
+        id: raceId,
+        section: "attributes",
+        payload: {
+          age_range: nz(draftAttr.age_range),
+          size: nz(draftAttr.size),
+          strength_max: nn(draftAttr.strength_max),
+          dexterity_max: nn(draftAttr.dexterity_max),
+          constitution_max: nn(draftAttr.constitution_max),
+          intelligence_max: nn(draftAttr.intelligence_max),
+          wisdom_max: nn(draftAttr.wisdom_max),
+          charisma_max: nn(draftAttr.charisma_max),
+          base_magic: nn(draftAttr.base_magic),
+          base_movement: nn(draftAttr.base_movement),
+        },
+      }),
+    });
 
-      // bonus skills
-      await api("/api/races", {
-        method: "PUT",
-        body: JSON.stringify({
-          id: race.id,
-          section: "bonus_skills",
-          items: draftBonus
-            .filter((b) => b.skill_id != null)
-            .map((b, idx) => ({ skill_id: b.skill_id!, points: Math.max(0, b.points | 0), slot_idx: idx })),
-        }),
-      });
+    // bonus skills
+    await apiClient("/api/races", {
+      method: "PUT",
+      body: JSON.stringify({
+        id: raceId,
+        section: "bonus_skills",
+        items: draftBonus
+          .filter((b) => b.skill_id != null)
+          .map((b, idx) => ({ skill_id: b.skill_id!, points: Math.max(0, b.points | 0), slot_idx: idx })),
+      }),
+    });
 
-      // specials
-      await api("/api/races", {
-        method: "PUT",
-        body: JSON.stringify({
-          id: race.id,
-          section: "special_abilities",
-          items: draftSpecial
-            .filter((s) => s.skill_id != null)
-            .map((s, idx) => ({ skill_id: s.skill_id!, points: Math.max(0, s.points | 0), slot_idx: idx })),
-        }),
-      });
-
-      await loadRace(race.id);
-      alert("Race saved.");
-    } catch (e: any) {
-      alert(`Save failed: ${e.message}`);
-    } finally {
-      setSaving(false);
-    }
+    // specials
+    await apiClient("/api/races", {
+      method: "PUT",
+      body: JSON.stringify({
+        id: raceId,
+        section: "special_abilities",
+        items: draftSpecial
+          .filter((s) => s.skill_id != null)
+          .map((s, idx) => ({ skill_id: s.skill_id!, points: Math.max(0, s.points | 0), slot_idx: idx })),
+      }),
+    });
   }
 
-  /* ---------- Draft setters ---------- */
-  const setDef = <K extends keyof RaceDefinition>(k: K, v: string) =>
+  /* ---------- Draft setters with auto-save ---------- */
+  const setDef = <K extends keyof RaceDefinition>(k: K, v: string) => {
     setDraftDef((d) => ({ ...d, [k]: v }));
+    save();
+  };
 
-  const setAttrText = (k: keyof RaceAttributes, v: string) =>
+  const setAttrText = (k: keyof RaceAttributes, v: string) => {
     setDraftAttr((a) => ({ ...a, [k]: v }));
+    save();
+  };
 
-  const setAttrNum = (k: keyof RaceAttributes, v: string) =>
+  const setAttrNum = (k: keyof RaceAttributes, v: string) => {
     setDraftAttr((a) => ({
       ...a,
       [k]: v === "" ? null : Number.isFinite(Number(v)) ? Math.trunc(Number(v)) : null,
     }));
+    save();
+  };
 
   function setBonusName(row: BonusItem, name: string) {
     const hit = skillCandidates.find((s) => s.name === name) || null;
@@ -388,12 +387,16 @@ export default function RacesPage() {
           : r
       )
     );
+    save();
   }
+
   function setBonusPoints(row: BonusItem, pts: string) {
     setDraftBonus((arr) =>
       arr.map((r) => (r.slot_idx === row.slot_idx ? { ...r, points: Math.max(0, Number(pts) | 0) } : r))
     );
+    save();
   }
+
   function setSpecialName(row: BonusItem, name: string) {
     const hit = specialCandidates.find((s) => s.name === name) || null;
     setDraftSpecial((arr) =>
@@ -407,11 +410,14 @@ export default function RacesPage() {
           : r
       )
     );
+    save();
   }
+
   function setSpecialPoints(row: BonusItem, pts: string) {
     setDraftSpecial((arr) =>
       arr.map((r) => (r.slot_idx === row.slot_idx ? { ...r, points: Math.max(0, Number(pts) | 0) } : r))
     );
+    save();
   }
 
   /* ---------- Preview ---------- */
@@ -459,14 +465,12 @@ export default function RacesPage() {
     ].join("\n");
   }, [race, draftDef, draftAttr, draftBonus, draftSpecial]);
 
-  const raceName = race?.name ?? "";
-
   /* ---------- render ---------- */
   return (
     <main className="min-h-screen px-6 py-10">
       {/* Header */}
-      <div className="max-w-7xl mx-auto mb-8">
-        <div className="flex items-center justify-between">
+      <header className="max-w-7xl mx-auto mb-8">
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <Link
               href="/worldbuilder"
@@ -474,361 +478,306 @@ export default function RacesPage() {
             >
               ← World Builder
             </Link>
-            <div>
-              <h1 className="font-evanescent st-title-gradient text-4xl sm:text-5xl tracking-tight">
-                Race Designer
-              </h1>
-              <p className="mt-1 text-sm text-neutral-400">Define racial lore, attribute caps/bases, and racial bonuses. Remember: the GM is G.O.D.</p>
-            </div>
+            <h1 className="font-evanescent st-title-gradient text-4xl sm:text-5xl tracking-tight">
+              Race Designer
+            </h1>
           </div>
-          <WBNav current="races" />
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => save()}
+              disabled={!race || isSaving}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-white rounded-lg transition-colors font-medium text-sm"
+            >
+              Save Now
+            </button>
+            <SaveIndicator isSaving={isSaving} lastSaved={lastSaved} />
+            <WBNav current="races" />
+          </div>
         </div>
-      </div>
-
-      {/* Controls Row */}
-      <header className="max-w-7xl mx-auto mb-4 flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-neutral-400">Race:</span>
-          <select
-            className="w-64 rounded-md bg-neutral-900/50 border border-neutral-700 px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-amber-400/40"
-            value={selectedId ?? ""}
-            onChange={(e) => onSelectRace(e.target.value)}
-            disabled={loading}
-          >
-            {racesLite.length === 0 && <option value="">(none)</option>}
-            {racesLite.map((r) => (
-              <option key={r.id} value={r.id}>{r.name}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* New race */}
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            placeholder="New race name…"
-            className="w-56 rounded-md bg-neutral-900/50 border border-neutral-700 px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-amber-400/40"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && onCreateRace()}
-            disabled={loading}
-            autoComplete="off"
-          />
-          <button
-            type="button"
-            className="rounded-md border border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-800/40"
-            onClick={onCreateRace}
-            disabled={loading || !newName.trim()}
-          >
-            Add
-          </button>
-        </div>
-
-        {/* Rename */}
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            placeholder={race ? `Rename “${raceName}”…` : "Rename…"}
-            className="w-52 rounded-md bg-neutral-900/50 border border-neutral-700 px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-amber-400/40"
-            value={renameValue}
-            onChange={(e) => setRenameValue(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && onRenameRace()}
-            disabled={loading || !race}
-            autoComplete="off"
-          />
-          <button
-            type="button"
-            className="rounded-md border border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-800/40"
-            onClick={onRenameRace}
-            disabled={loading || !race || !renameValue.trim()}
-          >
-            Apply
-          </button>
-        </div>
-
-        <div className="ml-auto flex items-center gap-2">
-          <button
-            type="button"
-            className="rounded-md border border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-800/40 disabled:opacity-50"
-            onClick={onSave}
-            disabled={saving || loading || !race}
-          >
-            {saving ? "Saving…" : "Save"}
-          </button>
-          <button
-            type="button"
-            className="rounded-md border border-rose-700 text-rose-200 px-3 py-1.5 text-sm hover:bg-rose-900/30 disabled:opacity-50"
-            onClick={onDeleteRace}
-            disabled={loading || !race}
-          >
-            Delete
-          </button>
-        </div>
+        <p className="text-sm text-zinc-300">
+          Define racial lore, attribute caps/bases, and racial bonuses. Changes save automatically.
+        </p>
       </header>
 
-      {/* Editor */}
-      <section className="max-w-7xl mx-auto rounded-2xl border border-neutral-800 bg-neutral-950/30 p-4">
-        {/* Tabs */}
-        <div className="mb-4 flex flex-wrap gap-2">
-          <Tab tab="identity" current={tab} setTab={setTab} label="Identity & Lore" />
-          <Tab tab="attributes" current={tab} setTab={setTab} label="Attributes" />
-          <Tab tab="bonuses" current={tab} setTab={setTab} label="Bonuses" />
-          <Tab tab="preview" current={tab} setTab={setTab} label="Preview" />
-        </div>
+      {/* Record Selector */}
+      <div className="max-w-7xl mx-auto mb-6">
+        <RecordSelector
+          records={racesLite}
+          selectedId={selectedId}
+          onSelect={handleSelectRace}
+          onCreate={handleCreateRace}
+          onRename={handleRenameRace}
+          onDelete={handleDeleteRace}
+          loading={loading}
+          recordType="Race"
+        />
+      </div>
 
-        <div className="border border-neutral-800 rounded-2xl p-4 bg-neutral-950/30">
+      {/* Content */}
+      <section className="max-w-7xl mx-auto rounded-2xl border border-white/15 bg-white/10 backdrop-blur-sm overflow-hidden">
+        <NavigationTabs
+          sections={TAB_SECTIONS}
+          currentSection={tab}
+          onSectionChange={(id) => setTab(id as TabKey)}
+        />
+
+        <div className="p-6">
           {/* Identity */}
-          <div className={tab === "identity" ? "block" : "hidden"}>
-            {!race ? (
-              <div className="p-2 text-neutral-400">Select or add a race.</div>
-            ) : (
-              <div className="grid gap-4">
-                <Area label="Legacy Description" value={draftDef.legacy_description ?? ""} onChange={(v) => setDef("legacy_description", v)} />
-                <Area label="Physical Characteristics" value={draftDef.physical_characteristics ?? ""} onChange={(v) => setDef("physical_characteristics", v)} />
-                <Area label="Physical Description" value={draftDef.physical_description ?? ""} onChange={(v) => setDef("physical_description", v)} />
-                <div className="flex items-end gap-6">
-                  <Field label="Racial Quirk">
-                    <input
-                      className="w-80 rounded-md bg-neutral-900/50 border border-neutral-700 px-3 py-1.5 text-sm"
-                      value={draftDef.racial_quirk ?? ""}
-                      onChange={(e) => setDef("racial_quirk", e.target.value)}
-                    />
-                  </Field>
-                </div>
-                <Area label="Quirk Success Effect" value={draftDef.quirk_success_effect ?? ""} onChange={(v) => setDef("quirk_success_effect", v)} rows={3} />
-                <Area label="Quirk Failure Effect" value={draftDef.quirk_failure_effect ?? ""} onChange={(v) => setDef("quirk_failure_effect", v)} rows={3} />
-                <Area label="Common Languages Known" value={draftDef.common_languages_known ?? ""} onChange={(v) => setDef("common_languages_known", v)} rows={2} />
-                <Area label="Common Archetypes" value={draftDef.common_archetypes ?? ""} onChange={(v) => setDef("common_archetypes", v)} rows={2} />
-                <Area label="Examples of Use in Different Genres" value={draftDef.examples_by_genre ?? ""} onChange={(v) => setDef("examples_by_genre", v)} rows={3} />
-                <Area label="Cultural Mindset" value={draftDef.cultural_mindset ?? ""} onChange={(v) => setDef("cultural_mindset", v)} rows={3} />
-                <Area label="Outlook On Magic" value={draftDef.outlook_on_magic ?? ""} onChange={(v) => setDef("outlook_on_magic", v)} rows={3} />
-              </div>
-            )}
-          </div>
+          {tab === "identity" && (
+            <div className="grid gap-4">
+              {!race ? (
+                <div className="p-4 text-zinc-400">Select or create a race to get started.</div>
+              ) : (
+                <>
+                  <FormField
+                    label="Legacy Description"
+                    value={draftDef.legacy_description ?? ""}
+                    onCommit={(v) => setDef("legacy_description", v)}
+                    type="textarea"
+                    rows={4}
+                  />
+                  <FormField
+                    label="Physical Characteristics"
+                    value={draftDef.physical_characteristics ?? ""}
+                    onCommit={(v) => setDef("physical_characteristics", v)}
+                    type="textarea"
+                    rows={4}
+                  />
+                  <FormField
+                    label="Physical Description"
+                    value={draftDef.physical_description ?? ""}
+                    onCommit={(v) => setDef("physical_description", v)}
+                    type="textarea"
+                    rows={4}
+                  />
+                  <FormField
+                    label="Racial Quirk"
+                    value={draftDef.racial_quirk ?? ""}
+                    onCommit={(v) => setDef("racial_quirk", v)}
+                    type="text"
+                  />
+                  <FormField
+                    label="Quirk Success Effect"
+                    value={draftDef.quirk_success_effect ?? ""}
+                    onCommit={(v) => setDef("quirk_success_effect", v)}
+                    type="textarea"
+                    rows={3}
+                  />
+                  <FormField
+                    label="Quirk Failure Effect"
+                    value={draftDef.quirk_failure_effect ?? ""}
+                    onCommit={(v) => setDef("quirk_failure_effect", v)}
+                    type="textarea"
+                    rows={3}
+                  />
+                  <FormField
+                    label="Common Languages Known"
+                    value={draftDef.common_languages_known ?? ""}
+                    onCommit={(v) => setDef("common_languages_known", v)}
+                    type="textarea"
+                    rows={2}
+                  />
+                  <FormField
+                    label="Common Archetypes"
+                    value={draftDef.common_archetypes ?? ""}
+                    onCommit={(v) => setDef("common_archetypes", v)}
+                    type="textarea"
+                    rows={2}
+                  />
+                  <FormField
+                    label="Examples of Use in Different Genres"
+                    value={draftDef.examples_by_genre ?? ""}
+                    onCommit={(v) => setDef("examples_by_genre", v)}
+                    type="textarea"
+                    rows={3}
+                  />
+                  <FormField
+                    label="Cultural Mindset"
+                    value={draftDef.cultural_mindset ?? ""}
+                    onCommit={(v) => setDef("cultural_mindset", v)}
+                    type="textarea"
+                    rows={3}
+                  />
+                  <FormField
+                    label="Outlook On Magic"
+                    value={draftDef.outlook_on_magic ?? ""}
+                    onCommit={(v) => setDef("outlook_on_magic", v)}
+                    type="textarea"
+                    rows={3}
+                  />
+                </>
+              )}
+            </div>
+          )}
 
           {/* Attributes */}
-          <div className={tab === "attributes" ? "block" : "hidden"}>
-            {!race ? (
-              <div className="p-2 text-neutral-400">Select or add a race.</div>
-            ) : (
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-3">
-                  <Field label="Age Range">
-                    <input
-                      className="w-56 rounded-md bg-neutral-900/50 border border-neutral-700 px-3 py-1.5 text-sm"
-                      placeholder="e.g., 15–90"
+          {tab === "attributes" && (
+            <div className="grid gap-6">
+              {!race ? (
+                <div className="p-4 text-zinc-400">Select or create a race to get started.</div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      label="Age Range"
                       value={draftAttr.age_range ?? ""}
-                      onChange={(e) => setAttrText("age_range", e.target.value)}
+                      onCommit={(v) => setAttrText("age_range", v)}
+                      type="text"
+                      placeholder="e.g., 15–90"
                     />
-                  </Field>
-                  <Field label="Size">
-                    <select
-                      className="w-44 rounded-md bg-neutral-900/50 border border-neutral-700 px-3 py-1.5 text-sm"
+                    <FormField
+                      label="Size"
                       value={draftAttr.size ?? ""}
-                      onChange={(e) => setAttrText("size", e.target.value)}
-                    >
-                      <option value="">(choose)</option>
-                      {SIZE_OPTIONS.map((s) => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
-                  </Field>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <Num label="STR Max" value={draftAttr.strength_max} onChange={(v) => setAttrNum("strength_max", v)} />
-                  <Num label="DEX Max" value={draftAttr.dexterity_max} onChange={(v) => setAttrNum("dexterity_max", v)} />
-                  <Num label="CON Max" value={draftAttr.constitution_max} onChange={(v) => setAttrNum("constitution_max", v)} />
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <Num label="INT Max" value={draftAttr.intelligence_max} onChange={(v) => setAttrNum("intelligence_max", v)} />
-                  <Num label="WIS Max" value={draftAttr.wisdom_max} onChange={(v) => setAttrNum("wisdom_max", v)} />
-                  <Num label="CHA Max" value={draftAttr.charisma_max} onChange={(v) => setAttrNum("charisma_max", v)} />
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <Num label="Base Magic" value={draftAttr.base_magic} onChange={(v) => setAttrNum("base_magic", v)} />
-                  <Num label="Base Movement" value={draftAttr.base_movement} onChange={(v) => setAttrNum("base_movement", v)} />
-                </div>
-              </div>
-            )}
-          </div>
+                      onCommit={(v) => setAttrText("size", v)}
+                      type="select"
+                      options={[
+                        { value: "", label: "(choose)" },
+                        ...SIZE_OPTIONS.map((s) => ({ value: s, label: s })),
+                      ]}
+                    />
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <FormField
+                      label="STR Max"
+                      value={String(draftAttr.strength_max ?? "")}
+                      onCommit={(v) => setAttrNum("strength_max", v)}
+                      type="number"
+                    />
+                    <FormField
+                      label="DEX Max"
+                      value={String(draftAttr.dexterity_max ?? "")}
+                      onCommit={(v) => setAttrNum("dexterity_max", v)}
+                      type="number"
+                    />
+                    <FormField
+                      label="CON Max"
+                      value={String(draftAttr.constitution_max ?? "")}
+                      onCommit={(v) => setAttrNum("constitution_max", v)}
+                      type="number"
+                    />
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <FormField
+                      label="INT Max"
+                      value={String(draftAttr.intelligence_max ?? "")}
+                      onCommit={(v) => setAttrNum("intelligence_max", v)}
+                      type="number"
+                    />
+                    <FormField
+                      label="WIS Max"
+                      value={String(draftAttr.wisdom_max ?? "")}
+                      onCommit={(v) => setAttrNum("wisdom_max", v)}
+                      type="number"
+                    />
+                    <FormField
+                      label="CHA Max"
+                      value={String(draftAttr.charisma_max ?? "")}
+                      onCommit={(v) => setAttrNum("charisma_max", v)}
+                      type="number"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      label="Base Magic"
+                      value={String(draftAttr.base_magic ?? "")}
+                      onCommit={(v) => setAttrNum("base_magic", v)}
+                      type="number"
+                    />
+                    <FormField
+                      label="Base Movement"
+                      value={String(draftAttr.base_movement ?? "")}
+                      onCommit={(v) => setAttrNum("base_movement", v)}
+                      type="number"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          )}
 
           {/* Bonuses */}
-          <div className={tab === "bonuses" ? "block" : "hidden"}>
-            {!race ? (
-              <div className="p-2 text-neutral-400">Select or add a race.</div>
-            ) : (
-              <div className="flex flex-col gap-6">
-                <section>
-                  <div className="font-semibold mb-2">Bonus Skills (Tier 1 only)</div>
-                  <div className="rounded-lg border border-neutral-800 bg-neutral-900/30 p-3">
-                    <div className="flex flex-col gap-2">
-                      {draftBonus.map((row) => (
-                        <div key={row.slot_idx} className="flex items-center gap-3">
-                          <select
-                            className="min-w-64 rounded-md bg-neutral-900/50 border border-neutral-700 px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-amber-400/40"
-                            value={row.skill_name ?? "(none)"}
-                            onChange={(e) => setBonusName(row, e.target.value)}
-                          >
-                            <option>(none)</option>
-                            {skillCandidates.map((o) => (
-                              <option key={o.id}>{o.name}</option>
-                            ))}
-                          </select>
-                          <span className="text-sm text-neutral-400">pts</span>
-                          <input
-                            type="number"
-                            min={0}
-                            className="w-20 rounded-md bg-neutral-900/50 border border-neutral-700 px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-amber-400/40"
-                            value={row.points}
-                            onChange={(e) => setBonusPoints(row, e.target.value)}
-                          />
-                        </div>
-                      ))}
+          {tab === "bonuses" && (
+            <div className="grid gap-6">
+              {!race ? (
+                <div className="p-4 text-zinc-400">Select or create a race to get started.</div>
+              ) : (
+                <>
+                  <section>
+                    <h3 className="text-lg font-semibold mb-3 text-zinc-200">Bonus Skills (Tier 1 only)</h3>
+                    <div className="rounded-lg border border-white/15 bg-white/5 p-4">
+                      <div className="grid gap-2">
+                        {draftBonus.map((row) => (
+                          <div key={row.slot_idx} className="flex items-center gap-3">
+                            <select
+                              className="flex-1 rounded-md bg-neutral-900/50 border border-white/15 px-3 py-2 text-sm text-zinc-200 outline-none focus:ring-2 focus:ring-amber-400/40"
+                              value={row.skill_name ?? "(none)"}
+                              onChange={(e) => setBonusName(row, e.target.value)}
+                            >
+                              <option>(none)</option>
+                              {skillCandidates.map((o) => (
+                                <option key={o.id}>{o.name}</option>
+                              ))}
+                            </select>
+                            <span className="text-sm text-zinc-400">pts</span>
+                            <input
+                              type="number"
+                              min={0}
+                              className="w-20 rounded-md bg-neutral-900/50 border border-white/15 px-2 py-2 text-sm text-zinc-200 outline-none focus:ring-2 focus:ring-amber-400/40"
+                              value={row.points}
+                              onChange={(e) => setBonusPoints(row, e.target.value)}
+                            />
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                </section>
+                  </section>
 
-                <section>
-                  <div className="font-semibold mb-2">Racial Special Abilities</div>
-                  <div className="rounded-lg border border-neutral-800 bg-neutral-900/30 p-3">
-                    <div className="flex flex-col gap-2">
-                      {draftSpecial.map((row) => (
-                        <div key={row.slot_idx} className="flex items-center gap-3">
-                          <select
-                            className="min-w-64 rounded-md bg-neutral-900/50 border border-neutral-700 px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-amber-400/40"
-                            value={row.skill_name ?? "(none)"}
-                            onChange={(e) => setSpecialName(row, e.target.value)}
-                          >
-                            <option>(none)</option>
-                            {specialCandidates.map((o) => (
-                              <option key={o.id}>{o.name}</option>
-                            ))}
-                          </select>
-                          <span className="text-sm text-neutral-400">pts</span>
-                          <input
-                            type="number"
-                            min={0}
-                            className="w-20 rounded-md bg-neutral-900/50 border border-neutral-700 px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-amber-400/40"
-                            value={row.points}
-                            onChange={(e) => setSpecialPoints(row, e.target.value)}
-                          />
-                        </div>
-                      ))}
+                  <section>
+                    <h3 className="text-lg font-semibold mb-3 text-zinc-200">Racial Special Abilities</h3>
+                    <div className="rounded-lg border border-white/15 bg-white/5 p-4">
+                      <div className="grid gap-2">
+                        {draftSpecial.map((row) => (
+                          <div key={row.slot_idx} className="flex items-center gap-3">
+                            <select
+                              className="flex-1 rounded-md bg-neutral-900/50 border border-white/15 px-3 py-2 text-sm text-zinc-200 outline-none focus:ring-2 focus:ring-amber-400/40"
+                              value={row.skill_name ?? "(none)"}
+                              onChange={(e) => setSpecialName(row, e.target.value)}
+                            >
+                              <option>(none)</option>
+                              {specialCandidates.map((o) => (
+                                <option key={o.id}>{o.name}</option>
+                              ))}
+                            </select>
+                            <span className="text-sm text-zinc-400">pts</span>
+                            <input
+                              type="number"
+                              min={0}
+                              className="w-20 rounded-md bg-neutral-900/50 border border-white/15 px-2 py-2 text-sm text-zinc-200 outline-none focus:ring-2 focus:ring-amber-400/40"
+                              value={row.points}
+                              onChange={(e) => setSpecialPoints(row, e.target.value)}
+                            />
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                </section>
-              </div>
-            )}
-          </div>
+                  </section>
+                </>
+              )}
+            </div>
+          )}
 
           {/* Preview */}
-          <div className={tab === "preview" ? "block" : "hidden"}>
-            <textarea
-              readOnly
-              value={previewText}
-              className="w-full h-[520px] rounded-xl border border-neutral-800 bg-neutral-950/50 px-3 py-2 text-sm"
-            />
-          </div>
+          {tab === "preview" && (
+            <div>
+              <textarea
+                readOnly
+                value={previewText}
+                className="w-full h-[600px] rounded-lg border border-white/15 bg-neutral-950/50 px-4 py-3 text-sm text-zinc-200 font-mono"
+              />
+            </div>
+          )}
         </div>
       </section>
     </main>
   );
-}
-
-/* ---------- Small components ---------- */
-function Tab({
-  tab,
-  current,
-  setTab,
-  label,
-}: {
-  tab: TabKey;
-  current: TabKey;
-  setTab: (t: TabKey) => void;
-  label: string;
-}) {
-  const active = current === tab;
-  return (
-    <button
-      type="button"
-      aria-selected={active}
-      onClick={() => setTab(tab)}
-      className={`px-3 py-1.5 rounded-md border text-sm transition ${
-        active
-          ? "bg-neutral-800/20 border-neutral-700 text-neutral-200"
-          : "hover:bg-neutral-800/30 border-neutral-700 text-neutral-300"
-      }`}
-    >
-      {label}
-    </button>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block text-sm">
-      <span className="text-neutral-400">{label}</span>
-      <div className="mt-1">{children}</div>
-    </label>
-  );
-}
-
-function Area({
-  label,
-  value,
-  onChange,
-  rows,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  rows?: number;
-}) {
-  return (
-    <Field label={label}>
-      <textarea
-        rows={rows ?? 4}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full resize-y rounded-md bg-neutral-900/50 border border-neutral-700 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-400/40"
-        autoComplete="off"
-        spellCheck={false}
-      />
-    </Field>
-  );
-}
-
-function Num({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: number | null | undefined;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <span className="text-sm text-neutral-300">{label}</span>
-      <input
-        type="number"
-        value={value ?? ""}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-36 rounded-md bg-neutral-900/50 border border-neutral-700 px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-amber-400/40"
-        autoComplete="off"
-      />
-    </div>
-  );
-}
-
-/* ---------- tiny utils ---------- */
-function nz<T extends string | null | undefined>(v: T): string | null {
-  const s = (v ?? "").toString().trim();
-  return s === "" ? null : s;
-}
-function nn<T extends number | null | undefined>(v: T): number | null {
-  return v == null || Number.isNaN(Number(v)) ? null : Math.trunc(Number(v));
 }

@@ -650,9 +650,6 @@ CREATE TABLE IF NOT EXISTS world_details (
   -- Basic info (Player-Facing)
   pitch                   TEXT NULL,           -- Short Pitch (≤200 chars)
 
-  -- Astral bodies (Player summary; G.O.D details)
-  suns_count              INTEGER NOT NULL DEFAULT 1 CHECK (suns_count BETWEEN 0 AND 5),
-
   -- Time & calendar (Player-Facing)
   day_hours               REAL    NULL CHECK (day_hours IS NULL OR (day_hours >= 1 AND day_hours <= 100)),
   year_days               INTEGER NULL CHECK (year_days IS NULL OR (year_days >= 30 AND year_days <= 1000)),
@@ -715,6 +712,20 @@ CREATE TABLE IF NOT EXISTS world_tags (
   UNIQUE(world_id, value)
 );
 CREATE INDEX IF NOT EXISTS idx_world_tags_world ON world_tags(world_id);
+
+-- =========================================================
+-- Suns (ordered)
+-- =========================================================
+CREATE TABLE IF NOT EXISTS world_suns (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  world_id     INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  name         TEXT NOT NULL,                   -- ≤40 in UI
+  cycle_days   INTEGER NULL CHECK (cycle_days IS NULL OR (cycle_days BETWEEN 1 AND 999)),
+  significance TEXT NULL,                       -- ≤120 in UI
+  order_index  INTEGER NOT NULL DEFAULT 0,
+  UNIQUE(world_id, order_index)
+);
+CREATE INDEX IF NOT EXISTS idx_world_suns_world ON world_suns(world_id);
 
 -- =========================================================
 -- Moons (ordered)

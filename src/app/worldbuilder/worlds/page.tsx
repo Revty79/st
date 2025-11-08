@@ -509,7 +509,7 @@ export default function WorldsPage() {
             className="mt-2 block w-full text-center rounded-xl border border-amber-300/40 px-3 py-1.5 text-sm text-amber-200/90 hover:bg-amber-300/10"
             href="/worldbuilder"
           >
-            â† Back to World Builder
+            Back to World Builder
           </Link>
         </div>
       </div>
@@ -610,7 +610,7 @@ export default function WorldsPage() {
               href="/worldbuilder"
               className="rounded-xl border border-white/15 px-3 py-1.5 text-sm text-zinc-200 hover:bg-white/10"
             >
-              â† World Builder
+              World Builder
             </Link>
             <h1 className="font-evanescent st-title-gradient text-4xl sm:text-5xl tracking-tight">Worlds</h1>
           </div>
@@ -637,13 +637,13 @@ export default function WorldsPage() {
           >
             <div className="flex items-center justify-between mb-3">
               <div className="text-sm font-semibold text-zinc-200">
-                Timeline Viewer â€” {active.name}
+                Timeline Viewer{active.name}
               </div>
               <button
                 className="rounded-lg border border-white/15 px-3 py-1 text-sm hover:bg-white/10"
                 onClick={() => setShowViewer(false)}
               >
-                âœ• Close
+                Close
               </button>
             </div>
             <div className="rounded-xl border border-white/10 bg-black/40 p-3 overflow-hidden">
@@ -774,7 +774,7 @@ function OriginalTimelineSection({
                                     {s.endYear ?? ""})
                                   </>
                                 )}
-                                {s.description ? ` â€” ${s.description}` : ""}
+                                {s.description ? ` — ${s.description}` : ""}
                               </div>
                               <button
                                 className="rounded border border-white/15 px-2 py-0.5 hover:bg-white/10"
@@ -804,7 +804,7 @@ function OriginalTimelineSection({
                               <div className="flex-1">
                                 {m.name}
                                 {m.year != null ? ` (Year ${m.year})` : ""}
-                                {m.description ? ` â€” ${m.description}` : ""}
+                                {m.description ? ` — ${m.description}` : ""}
                               </div>
                               <button
                                 className="rounded border border-white/15 px-2 py-0.5 hover:bg-white/10"
@@ -841,7 +841,7 @@ function OriginalTimelineSection({
                         className="rounded border border-rose-400/40 px-2 py-1 text-xs text-rose-200 hover:bg-rose-400/10"
                         onClick={() => deleteEra(era.id)}
                       >
-                        ðŸ—‘ Delete Era
+                        Delete Era
                       </button>
                     </div>
                   </div>
@@ -860,7 +860,7 @@ function OriginalTimelineSection({
                           <div className="flex-1">
                             {m.name}
                             {m.year != null ? ` (Year ${m.year})` : ""}
-                            {m.description ? ` â€” ${m.description}` : ""}
+                            {m.description ? ` — ${m.description}` : ""}
                           </div>
                           <button
                             className="rounded border border-white/15 px-2 py-0.5 hover:bg-white/10"
@@ -920,7 +920,7 @@ function OriginalTimelineSection({
                       {(era.startYear != null || era.endYear != null) && (
                         <>
                           {" "}
-                          â€” Years {era.startYear ?? ""}
+                          Years {era.startYear ?? ""}
                           {(era.startYear != null || era.endYear != null) ? " - " : ""}
                           {era.endYear ?? ""}
                         </>
@@ -933,14 +933,14 @@ function OriginalTimelineSection({
                       title="Move up"
                       onClick={() => moveEra(era.id, -1)}
                     >
-                      â†‘
+                      ↑
                     </button>
                     <button
                       className="rounded border border-white/15 px-2 py-1 text-xs hover:bg-white/10"
                       title="Move down"
                       onClick={() => moveEra(era.id, +1)}
                     >
-                      â†“
+                      ↓
                     </button>
                     <button
                       className="rounded border border-white/15 px-2 py-1 text-xs hover:bg-white/10"
@@ -970,7 +970,7 @@ function OriginalTimelineSection({
                     .map((s) => (
                       <div key={s.id} className="flex items-center gap-2 text-sm text-violet-200">
                         <div className="flex-1">
-                          â€¢ {s.name}
+                           {s.name}
                           {(s.startYear != null || s.endYear != null) && (
                             <>
                               {" "}
@@ -979,7 +979,7 @@ function OriginalTimelineSection({
                               {s.endYear ?? ""})
                             </>
                           )}
-                          {s.description ? ` â€” ${s.description}` : ""}
+                          {s.description ? ` — ${s.description}` : ""}
                         </div>
                         <button
                           className="rounded border border-white/15 px-2 py-1 text-xs hover:bg-white/10"

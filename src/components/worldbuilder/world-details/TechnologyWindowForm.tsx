@@ -28,7 +28,7 @@ const Input = ({ value, onCommit, placeholder, className, maxLength }: {
       onBlur={handleBlur}
       placeholder={placeholder}
       maxLength={maxLength}
-      className={`w-full rounded-lg bg-white/10 text-white placeholder:text-zinc-300 border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400 ${className || ""}`}
+      className={`w-full rounded-lg bg-white/10 text-white placeholder:text-white border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400 ${className || ""}`}
     />
   );
 };
@@ -61,11 +61,11 @@ const Textarea = ({ value, onCommit, placeholder, className, maxLength }: {
         onBlur={handleBlur}
         placeholder={placeholder}
         maxLength={maxLength}
-        className={`w-full rounded-lg bg-white/10 text-white placeholder:text-zinc-300 border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400 resize-y ${className || ""}`}
+        className={`w-full rounded-lg bg-white/10 text-white placeholder:text-white border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400 resize-y ${className || ""}`}
         rows={3}
       />
       {maxLength && (
-        <div className="text-sm text-zinc-200 mt-1 text-right">
+        <div className="text-sm text-white mt-1 text-right">
           {charCount}/{maxLength}
         </div>
       )}
@@ -125,7 +125,7 @@ const CheckboxList = ({ values, onCommit, options }: {
           <div>
             <span className="text-sm font-medium">{option.label}</span>
             {option.description && (
-              <p className="text-xs text-zinc-200 mt-1">{option.description}</p>
+              <p className="text-xs text-white mt-1">{option.description}</p>
             )}
           </div>
         </label>
@@ -298,7 +298,7 @@ export default function TechnologyWindowForm({ data, onUpdate }: TechnologyWindo
     <div className="space-y-6">
       <div className="border-b border-white/20 pb-4">
         <h2 className="text-xl font-semibold text-white">Technology Window (Global Bounds) — Player Expectations; G.O.D Limits</h2>
-        <p className="text-sm text-zinc-200 mt-1">
+        <p className="text-sm text-white mt-1">
           Sets technological ceiling and progression rules. Defines what's possible in your world and how advancement works.
         </p>
       </div>
@@ -309,7 +309,7 @@ export default function TechnologyWindowForm({ data, onUpdate }: TechnologyWindo
           <label className="block text-sm font-medium text-white mb-2">
             Overall Technology Level
           </label>
-          <p className="text-xs text-zinc-200 mb-2">
+          <p className="text-xs text-white mb-2">
             General technological baseline for your world.
           </p>
           <Select
@@ -325,7 +325,7 @@ export default function TechnologyWindowForm({ data, onUpdate }: TechnologyWindo
           <label className="block text-sm font-medium text-white mb-2">
             Available Technology Categories
           </label>
-          <p className="text-xs text-zinc-200 mb-3">
+          <p className="text-xs text-white mb-3">
             Select which categories of technology exist in your world.
           </p>
           <CheckboxList
@@ -349,7 +349,7 @@ export default function TechnologyWindowForm({ data, onUpdate }: TechnologyWindo
               Add Custom Category
             </button>
           </div>
-          <p className="text-xs text-zinc-200 mb-4">
+          <p className="text-xs text-white mb-4">
             Define specific technology categories unique to your world.
           </p>
 
@@ -371,7 +371,7 @@ export default function TechnologyWindowForm({ data, onUpdate }: TechnologyWindo
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
+                    <label className="block text-xs font-medium text-white mb-1">
                       Category Name
                     </label>
                     <Input
@@ -383,7 +383,7 @@ export default function TechnologyWindowForm({ data, onUpdate }: TechnologyWindo
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
+                    <label className="block text-xs font-medium text-white mb-1">
                       Development Level
                     </label>
                     <Input
@@ -395,7 +395,7 @@ export default function TechnologyWindowForm({ data, onUpdate }: TechnologyWindo
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
+                    <label className="block text-xs font-medium text-white mb-1">
                       Restrictions
                     </label>
                     <Textarea
@@ -407,7 +407,7 @@ export default function TechnologyWindowForm({ data, onUpdate }: TechnologyWindo
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
+                    <label className="block text-xs font-medium text-white mb-1">
                       Notes
                     </label>
                     <Textarea
@@ -428,7 +428,7 @@ export default function TechnologyWindowForm({ data, onUpdate }: TechnologyWindo
           <label className="block text-sm font-medium text-white mb-2">
             Restricted or Forbidden Technologies
           </label>
-          <p className="text-xs text-zinc-200 mb-2">
+          <p className="text-xs text-white mb-2">
             Technologies that are banned, lost, or impossible in your world.
           </p>
           
@@ -472,7 +472,7 @@ export default function TechnologyWindowForm({ data, onUpdate }: TechnologyWindo
           <label className="block text-sm font-medium text-white mb-2">
             Advancement Mechanism
           </label>
-          <p className="text-xs text-zinc-200 mb-2">
+          <p className="text-xs text-white mb-2">
             How does technology advance in your world?
           </p>
           <Select
@@ -488,7 +488,7 @@ export default function TechnologyWindowForm({ data, onUpdate }: TechnologyWindo
           <label className="block text-sm font-medium text-white mb-2">
             Magic-Technology Interaction
           </label>
-          <p className="text-xs text-zinc-200 mb-2">
+          <p className="text-xs text-white mb-2">
             How do magic and technology interact in your world?
           </p>
           <Select
@@ -504,7 +504,7 @@ export default function TechnologyWindowForm({ data, onUpdate }: TechnologyWindo
           <label className="block text-sm font-medium text-white mb-2">
             Progression Rules & Requirements
           </label>
-          <p className="text-xs text-zinc-200 mb-2">
+          <p className="text-xs text-white mb-2">
             Describe how technological advancement works in your world.
           </p>
           <Textarea
@@ -521,7 +521,7 @@ export default function TechnologyWindowForm({ data, onUpdate }: TechnologyWindo
           <label className="block text-sm font-medium text-white mb-2">
             Additional Technology Notes
           </label>
-          <p className="text-xs text-zinc-200 mb-2">
+          <p className="text-xs text-white mb-2">
             Any other important information about technology in your world.
           </p>
           <Textarea

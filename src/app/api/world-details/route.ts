@@ -11,7 +11,6 @@ type WorldDetailsRow = {
   id: number;
   world_id: number;
   pitch: string | null;
-  suns_count: number;
   day_hours: number | null;
   year_days: number | null;
   leap_rule: string | null;
@@ -71,6 +70,7 @@ function getWorldDetailsWithCollections(worldId: number) {
 
   // Get all collections
   const tags = db.prepare("SELECT value FROM world_tags WHERE world_id = ?").all(worldId) as Array<{value: string}>;
+  const suns = db.prepare("SELECT * FROM world_suns WHERE world_id = ? ORDER BY order_index").all(worldId);
   const moons = db.prepare("SELECT * FROM world_moons WHERE world_id = ? ORDER BY order_index").all(worldId);
   const months = db.prepare("SELECT * FROM world_months WHERE world_id = ? ORDER BY order_index").all(worldId);
   const weekdays = db.prepare("SELECT value FROM world_weekdays WHERE world_id = ? ORDER BY order_index").all(worldId) as Array<{value: string}>;
@@ -150,6 +150,7 @@ function getWorldDetailsWithCollections(worldId: number) {
   return {
     ...details,
     tags: tags.map(t => t.value),
+    suns,
     moons,
     months,
     weekdays: weekdays.map(w => w.value),
@@ -241,7 +242,6 @@ export async function POST(req: Request) {
     if (op === "updateBasicInfo") {
       const updates: any = {};
       if (body.pitch !== undefined) updates.pitch = body.pitch;
-      if (body.sunsCount !== undefined) updates.suns_count = Number(body.sunsCount);
       if (body.dayHours !== undefined) updates.day_hours = toFloatOrNull(body.dayHours);
       if (body.yearDays !== undefined) updates.year_days = toIntOrNull(body.yearDays);
       if (body.leapRule !== undefined) updates.leap_rule = body.leapRule;
@@ -312,6 +312,22 @@ export async function POST(req: Request) {
           INSERT INTO world_moons (world_id, name, cycle_days, omen, order_index) 
           VALUES (?, ?, ?, ?, ?)
         `).run(worldId, moon.name || "", toIntOrNull(moon.cycleDays), moon.omen || null, index);
+      });
+
+      const data = getWorldDetailsWithCollections(worldId);
+      return json({ ok: true, data });
+    }
+
+    if (op === "updateSuns") {
+      const suns = Array.isArray(body.suns) ? body.suns : [];
+      
+      db.prepare("DELETE FROM world_suns WHERE world_id = ?").run(worldId);
+      
+      suns.forEach((sun: any, index: number) => {
+        db.prepare(`
+          INSERT INTO world_suns (world_id, name, cycle_days, significance, order_index) 
+          VALUES (?, ?, ?, ?, ?)
+        `).run(worldId, sun.name || "", toIntOrNull(sun.cycleDays), sun.significance || null, index);
       });
 
       const data = getWorldDetailsWithCollections(worldId);
@@ -695,6 +711,38 @@ export async function POST(req: Request) {
       rarities.forEach((rarity: string) => {
         if (rarity.trim()) {
           db.prepare("INSERT INTO world_catalog_rarity_levels (world_id, rarity_name) VALUES (?, ?)").run(worldId, rarity.trim());
+        }
+      });
+
+      const data = getWorldDetailsWithCollections(worldId);
+      return json({ ok: true, data });
+    }
+
+    if (op === "updateCatalogRaces") {
+      const worldId = Number(required(body.worldId, "worldId"));
+      const raceIds = Array.isArray(body.raceIds) ? body.raceIds : [];
+      
+      db.prepare("DELETE FROM world_race_catalog WHERE world_id = ?").run(worldId);
+      
+      raceIds.forEach((raceId: number) => {
+        if (raceId) {
+          db.prepare("INSERT INTO world_race_catalog (world_id, race_id) VALUES (?, ?)").run(worldId, raceId);
+        }
+      });
+
+      const data = getWorldDetailsWithCollections(worldId);
+      return json({ ok: true, data });
+    }
+
+    if (op === "updateCatalogCreatures") {
+      const worldId = Number(required(body.worldId, "worldId"));
+      const creatureIds = Array.isArray(body.creatureIds) ? body.creatureIds : [];
+      
+      db.prepare("DELETE FROM world_creature_catalog WHERE world_id = ?").run(worldId);
+      
+      creatureIds.forEach((creatureId: number) => {
+        if (creatureId) {
+          db.prepare("INSERT INTO world_creature_catalog (world_id, creature_id) VALUES (?, ?)").run(worldId, creatureId);
         }
       });
 

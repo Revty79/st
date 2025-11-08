@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
 import { getSessionUser } from "@/server/session";
 import { apiSuccess, ApiErrors, withErrorHandling, validateRequiredFields } from "@/lib/api-utils";
@@ -56,7 +56,7 @@ function extractItemFields(body: any): Partial<ItemData> {
 
 export const GET = withErrorHandling(async () => {
   const rows = db.prepare(`SELECT * FROM ${TABLE} ORDER BY id DESC`).all();
-  return apiSuccess({ rows });
+  return NextResponse.json({ ok: true, rows });
 });
 
 export const POST = withErrorHandling(async (req: NextRequest) => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 // Reusable UI components
 const Input = ({ value, onCommit, placeholder, className, maxLength }: {
@@ -28,7 +28,7 @@ const Input = ({ value, onCommit, placeholder, className, maxLength }: {
       onBlur={handleBlur}
       placeholder={placeholder}
       maxLength={maxLength}
-      className={`w-full rounded-lg bg-white/10 text-white placeholder:text-zinc-300 border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400 ${className || ""}`}
+      className={`w-full rounded-lg bg-white/10 text-white placeholder:text-white border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400 ${className || ""}`}
     />
   );
 };
@@ -61,11 +61,11 @@ const Textarea = ({ value, onCommit, placeholder, className, maxLength }: {
         onBlur={handleBlur}
         placeholder={placeholder}
         maxLength={maxLength}
-        className={`w-full rounded-lg bg-white/10 text-white placeholder:text-zinc-300 border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400 resize-y ${className || ""}`}
+        className={`w-full rounded-lg bg-white/10 text-white placeholder:text-white border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400 resize-y ${className || ""}`}
         rows={3}
       />
       {maxLength && (
-        <div className="text-sm text-zinc-200 mt-1 text-right">
+        <div className="text-sm text-white mt-1 text-right">
           {charCount}/{maxLength}
         </div>
       )}
@@ -131,12 +131,12 @@ const TagInput = ({ values, onCommit, placeholder, maxTags, maxLength }: {
         placeholder={maxTags && values.length >= maxTags ? `Max ${maxTags} tags reached` : placeholder}
         disabled={!!(maxTags && values.length >= maxTags)}
         maxLength={maxLength}
-        className={`w-full rounded-lg bg-white/10 text-white placeholder:text-zinc-300 border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400 ${
+        className={`w-full rounded-lg bg-white/10 text-white placeholder:text-white border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400 ${
           !!(maxTags && values.length >= maxTags) ? "opacity-50" : ""
         }`}
       />
       {maxTags && (
-        <div className="text-xs text-zinc-200">
+        <div className="text-xs text-white">
           {values.length}/{maxTags} tags
         </div>
       )}
@@ -154,21 +154,11 @@ export interface LanguageFamilyData {
   status: string;
 }
 
-export interface CurrencySystemData {
-  name: string;
-  type: string;
-  denominations: string[];
-  exchangeRates: string;
-  regions: string[];
-  backing: string;
-  notes: string;
-}
-
 export interface OrganizationData {
   name: string;
   type: string;
   scope: string;
-  alignment: string;
+  viewpoint: string;
   goals: string;
   structure: string;
   membership: string;
@@ -178,22 +168,11 @@ export interface OrganizationData {
   allies: string[];
 }
 
-export interface CommonItemData {
-  name: string;
-  category: string;
-  rarity: string;
-  value: string;
-  description: string;
-  availability: string;
-  regions: string[];
-  uses: string[];
-}
-
 export interface MasterCatalogsData {
   languageFamilies: LanguageFamilyData[];
-  currencySystems: CurrencySystemData[];
   organizations: OrganizationData[];
-  commonItems: CommonItemData[];
+  selectedRaceIds: number[];
+  selectedCreatureIds: number[];
   organizationTypes: string[];
   itemCategories: string[];
   rarityLevels: string[];
@@ -206,6 +185,67 @@ interface MasterCatalogsFormProps {
 }
 
 export default function MasterCatalogsForm({ data, onUpdate }: MasterCatalogsFormProps) {
+  // State for available races and creatures
+  const [availableRaces, setAvailableRaces] = useState<Array<{ id: number; name: string }>>([]);
+  const [availableCreatures, setAvailableCreatures] = useState<Array<{ id: number; name: string }>>([]);
+  const [loadingRaces, setLoadingRaces] = useState(true);
+  const [loadingCreatures, setLoadingCreatures] = useState(true);
+
+  // Load available races and creatures from API
+  useEffect(() => {
+    const loadRaces = async () => {
+      try {
+        const response = await fetch("/api/races?lite=true");
+        const result = await response.json();
+        if (result.ok) {
+          setAvailableRaces(result.data || []);
+        }
+      } catch (error) {
+        console.error("Failed to load races:", error);
+      } finally {
+        setLoadingRaces(false);
+      }
+    };
+
+    const loadCreatures = async () => {
+      try {
+        const response = await fetch("/api/creatures");
+        const result = await response.json();
+        if (result.ok) {
+          // Map creatures to simple {id, name} format
+          const creatures = (result.data || []).map((c: any) => ({ id: c.id, name: c.name }));
+          setAvailableCreatures(creatures);
+        }
+      } catch (error) {
+        console.error("Failed to load creatures:", error);
+      } finally {
+        setLoadingCreatures(false);
+      }
+    };
+
+    loadRaces();
+    loadCreatures();
+  }, []);
+
+  // Ensure arrays are never undefined, including nested arrays
+  const safeData = {
+    ...data,
+    languageFamilies: (data.languageFamilies || []).map(fam => ({
+      ...fam,
+      languages: fam.languages || []
+    })),
+    organizations: (data.organizations || []).map(org => ({
+      ...org,
+      rivals: org.rivals || [],
+      allies: org.allies || []
+    })),
+    selectedRaceIds: data.selectedRaceIds || [],
+    selectedCreatureIds: data.selectedCreatureIds || [],
+    organizationTypes: data.organizationTypes || [],
+    itemCategories: data.itemCategories || [],
+    rarityLevels: data.rarityLevels || []
+  };
+
   const languageStatusOptions = [
     { value: "", label: "Select status..." },
     { value: "Thriving", label: "Thriving" },
@@ -217,18 +257,6 @@ export default function MasterCatalogsForm({ data, onUpdate }: MasterCatalogsFor
     { value: "Sacred", label: "Sacred/Liturgical" },
     { value: "Trade", label: "Trade Language" },
     { value: "Secret", label: "Secret/Coded" }
-  ];
-
-  const currencyTypeOptions = [
-    { value: "", label: "Select type..." },
-    { value: "Metal Coins", label: "Metal Coins" },
-    { value: "Paper Money", label: "Paper Money" },
-    { value: "Commodity", label: "Commodity Currency" },
-    { value: "Barter", label: "Barter System" },
-    { value: "Credit", label: "Credit/Banking" },
-    { value: "Magical", label: "Magical Currency" },
-    { value: "Service", label: "Service-based" },
-    { value: "Mixed", label: "Mixed System" }
   ];
 
   const organizationScopeOptions = [
@@ -243,19 +271,19 @@ export default function MasterCatalogsForm({ data, onUpdate }: MasterCatalogsFor
     { value: "Cosmic", label: "Cosmic" }
   ];
 
-  const alignmentOptions = [
-    { value: "", label: "Select alignment..." },
-    { value: "Lawful Good", label: "Lawful Good" },
-    { value: "Neutral Good", label: "Neutral Good" },
-    { value: "Chaotic Good", label: "Chaotic Good" },
-    { value: "Lawful Neutral", label: "Lawful Neutral" },
-    { value: "True Neutral", label: "True Neutral" },
-    { value: "Chaotic Neutral", label: "Chaotic Neutral" },
-    { value: "Lawful Evil", label: "Lawful Evil" },
-    { value: "Neutral Evil", label: "Neutral Evil" },
-    { value: "Chaotic Evil", label: "Chaotic Evil" },
-    { value: "Unaligned", label: "Unaligned" },
-    { value: "Variable", label: "Variable" }
+  const viewpointOptions = [
+    { value: "", label: "Select viewpoint..." },
+    { value: "Benevolent", label: "Benevolent" },
+    { value: "Protective", label: "Protective" },
+    { value: "Progressive", label: "Progressive" },
+    { value: "Conservative", label: "Conservative" },
+    { value: "Neutral", label: "Neutral" },
+    { value: "Opportunistic", label: "Opportunistic" },
+    { value: "Ruthless", label: "Ruthless" },
+    { value: "Exploitative", label: "Exploitative" },
+    { value: "Secretive", label: "Secretive" },
+    { value: "Idealistic", label: "Idealistic" },
+    { value: "Pragmatic", label: "Pragmatic" }
   ];
 
   const defaultOrgTypes = [
@@ -274,7 +302,7 @@ export default function MasterCatalogsForm({ data, onUpdate }: MasterCatalogsFor
 
   // Helper functions for Language Families
   const addLanguageFamily = () => {
-    const newFamilies = [...data.languageFamilies, {
+    const newFamilies = [...safeData.languageFamilies, {
       name: "", description: "", languages: [], writingSystem: "",
       speakers: "", status: ""
     }];
@@ -282,42 +310,21 @@ export default function MasterCatalogsForm({ data, onUpdate }: MasterCatalogsFor
   };
 
   const removeLanguageFamily = (index: number) => {
-    const newFamilies = data.languageFamilies.filter((_, i) => i !== index);
+    const newFamilies = safeData.languageFamilies.filter((_, i) => i !== index);
     onUpdate({ languageFamilies: newFamilies });
   };
 
   const updateLanguageFamily = (index: number, updates: Partial<LanguageFamilyData>) => {
-    const newFamilies = data.languageFamilies.map((family, i) =>
+    const newFamilies = safeData.languageFamilies.map((family, i) =>
       i === index ? { ...family, ...updates } : family
     );
     onUpdate({ languageFamilies: newFamilies });
   };
 
-  // Helper functions for Currency Systems
-  const addCurrencySystem = () => {
-    const newCurrencies = [...data.currencySystems, {
-      name: "", type: "", denominations: [], exchangeRates: "",
-      regions: [], backing: "", notes: ""
-    }];
-    onUpdate({ currencySystems: newCurrencies });
-  };
-
-  const removeCurrencySystem = (index: number) => {
-    const newCurrencies = data.currencySystems.filter((_, i) => i !== index);
-    onUpdate({ currencySystems: newCurrencies });
-  };
-
-  const updateCurrencySystem = (index: number, updates: Partial<CurrencySystemData>) => {
-    const newCurrencies = data.currencySystems.map((currency, i) =>
-      i === index ? { ...currency, ...updates } : currency
-    );
-    onUpdate({ currencySystems: newCurrencies });
-  };
-
   // Helper functions for Organizations
   const addOrganization = () => {
-    const newOrgs = [...data.organizations, {
-      name: "", type: "", scope: "", alignment: "", goals: "",
+    const newOrgs = [...safeData.organizations, {
+      name: "", type: "", scope: "", viewpoint: "", goals: "",
       structure: "", membership: "", resources: "", reputation: "",
       rivals: [], allies: []
     }];
@@ -325,43 +332,37 @@ export default function MasterCatalogsForm({ data, onUpdate }: MasterCatalogsFor
   };
 
   const removeOrganization = (index: number) => {
-    const newOrgs = data.organizations.filter((_, i) => i !== index);
+    const newOrgs = safeData.organizations.filter((_, i) => i !== index);
     onUpdate({ organizations: newOrgs });
   };
 
   const updateOrganization = (index: number, updates: Partial<OrganizationData>) => {
-    const newOrgs = data.organizations.map((org, i) =>
+    const newOrgs = safeData.organizations.map((org, i) =>
       i === index ? { ...org, ...updates } : org
     );
     onUpdate({ organizations: newOrgs });
   };
 
-  // Helper functions for Common Items
-  const addCommonItem = () => {
-    const newItems = [...data.commonItems, {
-      name: "", category: "", rarity: "", value: "", description: "",
-      availability: "", regions: [], uses: []
-    }];
-    onUpdate({ commonItems: newItems });
+  // Helper functions for Races/Creatures selection
+  const toggleRace = (raceId: number) => {
+    const newIds = safeData.selectedRaceIds.includes(raceId)
+      ? safeData.selectedRaceIds.filter(id => id !== raceId)
+      : [...safeData.selectedRaceIds, raceId];
+    onUpdate({ selectedRaceIds: newIds });
   };
 
-  const removeCommonItem = (index: number) => {
-    const newItems = data.commonItems.filter((_, i) => i !== index);
-    onUpdate({ commonItems: newItems });
-  };
-
-  const updateCommonItem = (index: number, updates: Partial<CommonItemData>) => {
-    const newItems = data.commonItems.map((item, i) =>
-      i === index ? { ...item, ...updates } : item
-    );
-    onUpdate({ commonItems: newItems });
+  const toggleCreature = (creatureId: number) => {
+    const newIds = safeData.selectedCreatureIds.includes(creatureId)
+      ? safeData.selectedCreatureIds.filter(id => id !== creatureId)
+      : [...safeData.selectedCreatureIds, creatureId];
+    onUpdate({ selectedCreatureIds: newIds });
   };
 
   return (
     <div className="space-y-6">
       <div className="border-b border-white/20 pb-4">
         <h2 className="text-xl font-semibold text-white">Master Catalogs — Player Lore; G.O.D Framework</h2>
-        <p className="text-sm text-zinc-200 mt-1">
+        <p className="text-sm text-white mt-1">
           Comprehensive catalogs of languages, currencies, organizations, and common items in your world.
         </p>
       </div>
@@ -373,11 +374,11 @@ export default function MasterCatalogsForm({ data, onUpdate }: MasterCatalogsFor
             <label className="block text-sm font-medium text-white mb-2">
               Organization Types
             </label>
-            <p className="text-xs text-zinc-200 mb-2">
+            <p className="text-xs text-white mb-2">
               Types of organizations in your world.
             </p>
             <TagInput
-              values={data.organizationTypes.length > 0 ? data.organizationTypes : defaultOrgTypes}
+              values={safeData.organizationTypes.length > 0 ? safeData.organizationTypes : defaultOrgTypes}
               onCommit={(values) => onUpdate({ organizationTypes: values })}
               placeholder="Add organization type..."
               maxLength={30}
@@ -388,11 +389,11 @@ export default function MasterCatalogsForm({ data, onUpdate }: MasterCatalogsFor
             <label className="block text-sm font-medium text-white mb-2">
               Item Categories
             </label>
-            <p className="text-xs text-zinc-200 mb-2">
+            <p className="text-xs text-white mb-2">
               Categories for common items.
             </p>
             <TagInput
-              values={data.itemCategories.length > 0 ? data.itemCategories : defaultItemCategories}
+              values={safeData.itemCategories.length > 0 ? safeData.itemCategories : defaultItemCategories}
               onCommit={(values) => onUpdate({ itemCategories: values })}
               placeholder="Add item category..."
               maxLength={30}
@@ -403,11 +404,11 @@ export default function MasterCatalogsForm({ data, onUpdate }: MasterCatalogsFor
             <label className="block text-sm font-medium text-white mb-2">
               Rarity Levels
             </label>
-            <p className="text-xs text-zinc-200 mb-2">
+            <p className="text-xs text-white mb-2">
               Rarity classifications for items.
             </p>
             <TagInput
-              values={data.rarityLevels.length > 0 ? data.rarityLevels : defaultRarityLevels}
+              values={safeData.rarityLevels.length > 0 ? safeData.rarityLevels : defaultRarityLevels}
               onCommit={(values) => onUpdate({ rarityLevels: values })}
               placeholder="Add rarity level..."
               maxLength={20}
@@ -429,12 +430,12 @@ export default function MasterCatalogsForm({ data, onUpdate }: MasterCatalogsFor
               Add Language Family
             </button>
           </div>
-          <p className="text-xs text-zinc-200 mb-4">
+          <p className="text-xs text-white mb-4">
             Linguistic groups and individual languages in your world.
           </p>
 
           <div className="space-y-4">
-            {data.languageFamilies.map((family, index) => (
+            {safeData.languageFamilies.map((family, index) => (
               <div key={index} className="border border-white/20 rounded-lg p-4 bg-white/5">
                 <div className="flex justify-between items-start mb-4">
                   <h4 className="text-sm font-medium text-white">
@@ -451,7 +452,7 @@ export default function MasterCatalogsForm({ data, onUpdate }: MasterCatalogsFor
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
+                    <label className="block text-xs font-medium text-white mb-1">
                       Family Name
                     </label>
                     <Input
@@ -463,7 +464,7 @@ export default function MasterCatalogsForm({ data, onUpdate }: MasterCatalogsFor
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
+                    <label className="block text-xs font-medium text-white mb-1">
                       Writing System
                     </label>
                     <Input
@@ -475,7 +476,7 @@ export default function MasterCatalogsForm({ data, onUpdate }: MasterCatalogsFor
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
+                    <label className="block text-xs font-medium text-white mb-1">
                       Status
                     </label>
                     <select
@@ -492,7 +493,7 @@ export default function MasterCatalogsForm({ data, onUpdate }: MasterCatalogsFor
                   </div>
 
                   <div className="md:col-span-2 lg:col-span-3">
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
+                    <label className="block text-xs font-medium text-white mb-1">
                       Description
                     </label>
                     <Textarea
@@ -504,7 +505,7 @@ export default function MasterCatalogsForm({ data, onUpdate }: MasterCatalogsFor
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
+                    <label className="block text-xs font-medium text-white mb-1">
                       Languages
                     </label>
                     <TagInput
@@ -516,7 +517,7 @@ export default function MasterCatalogsForm({ data, onUpdate }: MasterCatalogsFor
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
+                    <label className="block text-xs font-medium text-white mb-1">
                       Speakers
                     </label>
                     <Input
@@ -524,135 +525,6 @@ export default function MasterCatalogsForm({ data, onUpdate }: MasterCatalogsFor
                       onCommit={(value) => updateLanguageFamily(index, { speakers: value })}
                       placeholder="Who speaks these languages..."
                       maxLength={100}
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Currency Systems */}
-        <div>
-          <div className="flex justify-between items-center mb-2">
-            <label className="block text-sm font-medium text-white">
-              Currency Systems
-            </label>
-            <button
-              type="button"
-              onClick={addCurrencySystem}
-              className="px-3 py-1 bg-amber-500 text-black text-sm rounded hover:bg-amber-400"
-            >
-              Add Currency System
-            </button>
-          </div>
-          <p className="text-xs text-zinc-200 mb-4">
-            Monetary systems and trade mechanisms in your world.
-          </p>
-
-          <div className="space-y-4">
-            {data.currencySystems.map((currency, index) => (
-              <div key={index} className="border border-white/20 rounded-lg p-4 bg-white/5">
-                <div className="flex justify-between items-start mb-4">
-                  <h4 className="text-sm font-medium text-white">
-                    {currency.name || `Currency System ${index + 1}`}
-                  </h4>
-                  <button
-                    type="button"
-                    onClick={() => removeCurrencySystem(index)}
-                    className="text-red-400 hover:text-red-300"
-                  >
-                    Remove
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
-                      Currency Name
-                    </label>
-                    <Input
-                      value={currency.name}
-                      onCommit={(value) => updateCurrencySystem(index, { name: value })}
-                      placeholder="Currency name..."
-                      maxLength={50}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
-                      Type
-                    </label>
-                    <select
-                      value={currency.type}
-                      onChange={(e) => updateCurrencySystem(index, { type: e.target.value })}
-                      className="w-full rounded-lg bg-white/10 text-white border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400"
-                    >
-                      {currencyTypeOptions.map((option) => (
-                        <option key={option.value} value={option.value} className="bg-zinc-800 text-white">
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
-                      Backing
-                    </label>
-                    <Input
-                      value={currency.backing}
-                      onCommit={(value) => updateCurrencySystem(index, { backing: value })}
-                      placeholder="Gold standard, government, etc..."
-                      maxLength={60}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
-                      Denominations
-                    </label>
-                    <TagInput
-                      values={currency.denominations}
-                      onCommit={(values) => updateCurrencySystem(index, { denominations: values })}
-                      placeholder="Add denomination..."
-                      maxLength={30}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
-                      Regions Used
-                    </label>
-                    <TagInput
-                      values={currency.regions}
-                      onCommit={(values) => updateCurrencySystem(index, { regions: values })}
-                      placeholder="Add region..."
-                      maxLength={40}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
-                      Exchange Rates
-                    </label>
-                    <Input
-                      value={currency.exchangeRates}
-                      onCommit={(value) => updateCurrencySystem(index, { exchangeRates: value })}
-                      placeholder="1 gold = 10 silver..."
-                      maxLength={100}
-                    />
-                  </div>
-
-                  <div className="md:col-span-2 lg:col-span-3">
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
-                      Notes
-                    </label>
-                    <Textarea
-                      value={currency.notes}
-                      onCommit={(value) => updateCurrencySystem(index, { notes: value })}
-                      placeholder="Additional details about this currency..."
-                      maxLength={300}
                     />
                   </div>
                 </div>
@@ -675,12 +547,12 @@ export default function MasterCatalogsForm({ data, onUpdate }: MasterCatalogsFor
               Add Organization
             </button>
           </div>
-          <p className="text-xs text-zinc-200 mb-4">
+          <p className="text-xs text-white mb-4">
             Important organizations, guilds, and factions in your world.
           </p>
 
           <div className="space-y-4">
-            {data.organizations.map((org, index) => (
+            {safeData.organizations.map((org, index) => (
               <div key={index} className="border border-white/20 rounded-lg p-4 bg-white/5">
                 <div className="flex justify-between items-start mb-4">
                   <h4 className="text-sm font-medium text-white">
@@ -697,7 +569,7 @@ export default function MasterCatalogsForm({ data, onUpdate }: MasterCatalogsFor
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
+                    <label className="block text-xs font-medium text-white mb-1">
                       Name
                     </label>
                     <Input
@@ -709,7 +581,7 @@ export default function MasterCatalogsForm({ data, onUpdate }: MasterCatalogsFor
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
+                    <label className="block text-xs font-medium text-white mb-1">
                       Type
                     </label>
                     <select
@@ -718,7 +590,7 @@ export default function MasterCatalogsForm({ data, onUpdate }: MasterCatalogsFor
                       className="w-full rounded-lg bg-white/10 text-white border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400"
                     >
                       <option value="" className="bg-zinc-800 text-white">Select type...</option>
-                      {(data.organizationTypes.length > 0 ? data.organizationTypes : defaultOrgTypes).map((type) => (
+                      {(safeData.organizationTypes.length > 0 ? safeData.organizationTypes : defaultOrgTypes).map((type) => (
                         <option key={type} value={type} className="bg-zinc-800 text-white">
                           {type}
                         </option>
@@ -727,7 +599,7 @@ export default function MasterCatalogsForm({ data, onUpdate }: MasterCatalogsFor
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
+                    <label className="block text-xs font-medium text-white mb-1">
                       Scope
                     </label>
                     <select
@@ -744,16 +616,16 @@ export default function MasterCatalogsForm({ data, onUpdate }: MasterCatalogsFor
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
-                      Alignment
+                    <label className="block text-xs font-medium text-white mb-1">
+                      Viewpoint/Philosophy
                     </label>
                     <select
-                      value={org.alignment}
-                      onChange={(e) => updateOrganization(index, { alignment: e.target.value })}
-                      className="w-full rounded-lg bg-white/10 text-white border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400"
+                      value={org.viewpoint}
+                      onChange={(e) => updateOrganization(index, { viewpoint: e.target.value })}
+                      className="w-full rounded-lg bg-white/10 text-zinc-200 border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400"
                     >
-                      {alignmentOptions.map((option) => (
-                        <option key={option.value} value={option.value} className="bg-zinc-800 text-white">
+                      {viewpointOptions.map((option) => (
+                        <option key={option.value} value={option.value} className="bg-zinc-800 text-zinc-200">
                           {option.label}
                         </option>
                       ))}
@@ -761,7 +633,7 @@ export default function MasterCatalogsForm({ data, onUpdate }: MasterCatalogsFor
                   </div>
 
                   <div className="md:col-span-2 lg:col-span-2">
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
+                    <label className="block text-xs font-medium text-white mb-1">
                       Goals
                     </label>
                     <Textarea
@@ -773,7 +645,7 @@ export default function MasterCatalogsForm({ data, onUpdate }: MasterCatalogsFor
                   </div>
 
                   <div className="md:col-span-2 lg:col-span-2">
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
+                    <label className="block text-xs font-medium text-white mb-1">
                       Structure
                     </label>
                     <Textarea
@@ -785,7 +657,7 @@ export default function MasterCatalogsForm({ data, onUpdate }: MasterCatalogsFor
                   </div>
 
                   <div className="md:col-span-2">
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
+                    <label className="block text-xs font-medium text-white mb-1">
                       Membership
                     </label>
                     <Textarea
@@ -797,7 +669,7 @@ export default function MasterCatalogsForm({ data, onUpdate }: MasterCatalogsFor
                   </div>
 
                   <div className="md:col-span-2">
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
+                    <label className="block text-xs font-medium text-white mb-1">
                       Resources
                     </label>
                     <Textarea
@@ -809,7 +681,7 @@ export default function MasterCatalogsForm({ data, onUpdate }: MasterCatalogsFor
                   </div>
 
                   <div className="md:col-span-2 lg:col-span-2">
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
+                    <label className="block text-xs font-medium text-white mb-1">
                       Reputation
                     </label>
                     <Textarea
@@ -821,7 +693,7 @@ export default function MasterCatalogsForm({ data, onUpdate }: MasterCatalogsFor
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
+                    <label className="block text-xs font-medium text-white mb-1">
                       Rivals
                     </label>
                     <TagInput
@@ -833,7 +705,7 @@ export default function MasterCatalogsForm({ data, onUpdate }: MasterCatalogsFor
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
+                    <label className="block text-xs font-medium text-white mb-1">
                       Allies
                     </label>
                     <TagInput
@@ -849,152 +721,64 @@ export default function MasterCatalogsForm({ data, onUpdate }: MasterCatalogsFor
           </div>
         </div>
 
-        {/* Common Items */}
+        {/* Races Selection */}
         <div>
-          <div className="flex justify-between items-center mb-2">
-            <label className="block text-sm font-medium text-white">
-              Common Items & Trade Goods
-            </label>
-            <button
-              type="button"
-              onClick={addCommonItem}
-              className="px-3 py-1 bg-amber-500 text-black text-sm rounded hover:bg-amber-400"
-            >
-              Add Item
-            </button>
-          </div>
-          <p className="text-xs text-zinc-200 mb-4">
-            Everyday items, trade goods, and commonly available equipment.
+          <label className="block text-sm font-medium text-white mb-2">
+            Races in World
+          </label>
+          <p className="text-xs text-white mb-4">
+            Select which races exist in this world.
           </p>
+          
+          {loadingRaces ? (
+            <div className="text-zinc-400 text-sm">Loading races...</div>
+          ) : availableRaces.length === 0 ? (
+            <div className="text-zinc-400 text-sm">No races available. Create races first.</div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+              {availableRaces.map((race) => (
+                <label key={race.id} className="flex items-center space-x-2 p-2 rounded border border-white/20 bg-white/5 hover:bg-white/10 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={safeData.selectedRaceIds.includes(race.id)}
+                    onChange={() => toggleRace(race.id)}
+                    className="rounded border-white/20 text-amber-500 focus:ring-amber-400"
+                  />
+                  <span className="text-sm text-white">{race.name}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
 
-          <div className="space-y-4">
-            {data.commonItems.map((item, index) => (
-              <div key={index} className="border border-white/20 rounded-lg p-4 bg-white/5">
-                <div className="flex justify-between items-start mb-4">
-                  <h4 className="text-sm font-medium text-white">
-                    {item.name || `Item ${index + 1}`}
-                  </h4>
-                  <button
-                    type="button"
-                    onClick={() => removeCommonItem(index)}
-                    className="text-red-400 hover:text-red-300"
-                  >
-                    Remove
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
-                      Item Name
-                    </label>
-                    <Input
-                      value={item.name}
-                      onCommit={(value) => updateCommonItem(index, { name: value })}
-                      placeholder="Item name..."
-                      maxLength={60}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
-                      Category
-                    </label>
-                    <select
-                      value={item.category}
-                      onChange={(e) => updateCommonItem(index, { category: e.target.value })}
-                      className="w-full rounded-lg bg-white/10 text-white border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400"
-                    >
-                      <option value="" className="bg-zinc-800 text-white">Select category...</option>
-                      {(data.itemCategories.length > 0 ? data.itemCategories : defaultItemCategories).map((category) => (
-                        <option key={category} value={category} className="bg-zinc-800 text-white">
-                          {category}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
-                      Rarity
-                    </label>
-                    <select
-                      value={item.rarity}
-                      onChange={(e) => updateCommonItem(index, { rarity: e.target.value })}
-                      className="w-full rounded-lg bg-white/10 text-white border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400"
-                    >
-                      <option value="" className="bg-zinc-800 text-white">Select rarity...</option>
-                      {(data.rarityLevels.length > 0 ? data.rarityLevels : defaultRarityLevels).map((rarity) => (
-                        <option key={rarity} value={rarity} className="bg-zinc-800 text-white">
-                          {rarity}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
-                      Value
-                    </label>
-                    <Input
-                      value={item.value}
-                      onCommit={(value) => updateCommonItem(index, { value: value })}
-                      placeholder="5 gold pieces..."
-                      maxLength={50}
-                    />
-                  </div>
-
-                  <div className="md:col-span-2 lg:col-span-2">
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
-                      Description
-                    </label>
-                    <Textarea
-                      value={item.description}
-                      onCommit={(value) => updateCommonItem(index, { description: value })}
-                      placeholder="Describe this item..."
-                      maxLength={200}
-                    />
-                  </div>
-
-                  <div className="md:col-span-2 lg:col-span-2">
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
-                      Availability
-                    </label>
-                    <Textarea
-                      value={item.availability}
-                      onCommit={(value) => updateCommonItem(index, { availability: value })}
-                      placeholder="Where and how easily can this be found..."
-                      maxLength={150}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
-                      Regions
-                    </label>
-                    <TagInput
-                      values={item.regions}
-                      onCommit={(values) => updateCommonItem(index, { regions: values })}
-                      placeholder="Add region..."
-                      maxLength={40}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
-                      Uses
-                    </label>
-                    <TagInput
-                      values={item.uses}
-                      onCommit={(values) => updateCommonItem(index, { uses: values })}
-                      placeholder="Add use..."
-                      maxLength={30}
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+        {/* Creatures Selection */}
+        <div>
+          <label className="block text-sm font-medium text-white mb-2">
+            Creatures in World
+          </label>
+          <p className="text-xs text-white mb-4">
+            Select which creatures exist in this world.
+          </p>
+          
+          {loadingCreatures ? (
+            <div className="text-zinc-400 text-sm">Loading creatures...</div>
+          ) : availableCreatures.length === 0 ? (
+            <div className="text-zinc-400 text-sm">No creatures available. Create creatures first.</div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+              {availableCreatures.map((creature) => (
+                <label key={creature.id} className="flex items-center space-x-2 p-2 rounded border border-white/20 bg-white/5 hover:bg-white/10 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={safeData.selectedCreatureIds.includes(creature.id)}
+                    onChange={() => toggleCreature(creature.id)}
+                    className="rounded border-white/20 text-amber-500 focus:ring-amber-400"
+                  />
+                  <span className="text-sm text-white">{creature.name}</span>
+                </label>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Additional Notes */}
@@ -1002,11 +786,11 @@ export default function MasterCatalogsForm({ data, onUpdate }: MasterCatalogsFor
           <label className="block text-sm font-medium text-white mb-2">
             Additional Catalog Notes
           </label>
-          <p className="text-xs text-zinc-200 mb-2">
+          <p className="text-xs text-white mb-2">
             Any other important information about your world's catalogs and systems.
           </p>
           <Textarea
-            value={data.notes}
+            value={safeData.notes}
             onCommit={(value) => onUpdate({ notes: value })}
             placeholder="Trade relationships, cultural significance of items, linguistic evolution..."
             maxLength={800}

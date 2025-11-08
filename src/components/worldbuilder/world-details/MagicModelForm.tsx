@@ -27,7 +27,7 @@ const Input = ({ value, onCommit, placeholder, maxLength }: {
       onBlur={handleBlur}
       placeholder={placeholder}
       maxLength={maxLength}
-      className="w-full rounded-lg bg-white/10 text-white placeholder:text-zinc-200 border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400"
+      className="w-full rounded-lg bg-white/10 text-white placeholder:text-white border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400"
     />
   );
 };
@@ -61,10 +61,10 @@ const Textarea = ({ value, onCommit, placeholder, maxLength }: {
         placeholder={placeholder}
         maxLength={maxLength}
         rows={3}
-        className="w-full rounded-lg bg-white/10 text-white placeholder:text-zinc-200 border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400 resize-y"
+        className="w-full rounded-lg bg-white/10 text-white placeholder:text-white border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400 resize-y"
       />
       {maxLength && (
-        <div className="text-sm text-zinc-200 mt-1 text-right">
+        <div className="text-sm text-white mt-1 text-right">
           {charCount}/{maxLength}
         </div>
       )}
@@ -144,6 +144,14 @@ export default function MagicModelForm({ data, onUpdate }: MagicModelFormProps) 
   const [newRule, setNewRule] = useState("");
   const [newCustom, setNewCustom] = useState("");
 
+  // Ensure arrays are never undefined
+  const safeData = {
+    ...data,
+    magicSystems: data.magicSystems || [],
+    magicCustoms: data.magicCustoms || [],
+    unbreakableRules: data.unbreakableRules || []
+  };
+
   const magicSystemOptions = [
     { value: "Spellcraft", label: "Spellcraft" },
     { value: "Talisman-making", label: "Talisman-making" },
@@ -168,28 +176,28 @@ export default function MagicModelForm({ data, onUpdate }: MagicModelFormProps) 
   ];
 
   const addRule = () => {
-    if (newRule.trim() && data.unbreakableRules.length < 10) {
-      onUpdate({ unbreakableRules: [...data.unbreakableRules, newRule.trim()] });
+    if (newRule.trim() && safeData.unbreakableRules.length < 10) {
+      onUpdate({ unbreakableRules: [...safeData.unbreakableRules, newRule.trim()] });
       setNewRule("");
     }
   };
 
   const removeRule = (index: number) => {
     onUpdate({ 
-      unbreakableRules: data.unbreakableRules.filter((_, i) => i !== index) 
+      unbreakableRules: safeData.unbreakableRules.filter((_, i) => i !== index) 
     });
   };
 
   const addCustomSystem = () => {
-    if (newCustom.trim() && !data.magicCustoms.includes(newCustom.trim())) {
-      onUpdate({ magicCustoms: [...data.magicCustoms, newCustom.trim()] });
+    if (newCustom.trim() && !safeData.magicCustoms.includes(newCustom.trim())) {
+      onUpdate({ magicCustoms: [...safeData.magicCustoms, newCustom.trim()] });
       setNewCustom("");
     }
   };
 
   const removeCustomSystem = (index: number) => {
     onUpdate({ 
-      magicCustoms: data.magicCustoms.filter((_, i) => i !== index) 
+      magicCustoms: safeData.magicCustoms.filter((_, i) => i !== index) 
     });
   };
 
@@ -197,7 +205,7 @@ export default function MagicModelForm({ data, onUpdate }: MagicModelFormProps) 
     <div className="space-y-6">
       <div className="border-b border-white/20 pb-4">
         <h2 className="text-xl font-semibold text-white">Magic Model (Global Rules) — Player Summary + G.O.D Rules</h2>
-        <p className="text-sm text-zinc-200 mt-1">
+        <p className="text-sm text-white mt-1">
           Hard ceiling the Era/Setting must obey. Sets the magical possibilities and limitations.
         </p>
       </div>
@@ -208,11 +216,11 @@ export default function MagicModelForm({ data, onUpdate }: MagicModelFormProps) 
           <label className="block text-sm font-medium text-white mb-2">
             Allowed Systems (Master List)
           </label>
-          <p className="text-xs text-zinc-500 mb-3">
+          <p className="text-xs text-white mb-3">
             Check which magical systems exist in your world.
           </p>
           <CheckboxList
-            values={data.magicSystems}
+            values={safeData.magicSystems}
             onCommit={(values) => onUpdate({ magicSystems: values })}
             options={magicSystemOptions}
           />
@@ -223,14 +231,14 @@ export default function MagicModelForm({ data, onUpdate }: MagicModelFormProps) 
           <label className="block text-sm font-medium text-white mb-2">
             Custom Magic Systems
           </label>
-          <p className="text-xs text-zinc-500 mb-2">
+          <p className="text-xs text-white mb-2">
             Add your own magical systems beyond the standard list.
           </p>
           
           <div className="space-y-2">
-            {data.magicCustoms.map((custom, index) => (
+            {safeData.magicCustoms.map((custom, index) => (
               <div key={index} className="flex items-center space-x-2">
-                <span className="flex-1 px-3 py-2 bg-white/10 text-zinc-200 rounded border border-white/20">{custom}</span>
+                <span className="flex-1 px-3 py-2 bg-white/10 text-white rounded border border-white/20">{custom}</span>
                 <button
                   type="button"
                   onClick={() => removeCustomSystem(index)}
@@ -264,11 +272,11 @@ export default function MagicModelForm({ data, onUpdate }: MagicModelFormProps) 
           <label className="block text-sm font-medium text-white mb-2">
             Source Statement
           </label>
-          <p className="text-xs text-zinc-500 mb-2">
+          <p className="text-xs text-white mb-2">
             1–2 sentences describing where magic comes from. ≤240 chars.
           </p>
           <Textarea
-            value={data.sourceStatement}
+            value={safeData.sourceStatement}
             onCommit={(value) => onUpdate({ sourceStatement: value })}
             placeholder="Magic flows from the ley lines that crisscross the world, tapped by those with the proper training..."
             maxLength={240}
@@ -280,11 +288,11 @@ export default function MagicModelForm({ data, onUpdate }: MagicModelFormProps) 
           <label className="block text-sm font-medium text-white mb-2">
             Magic Rarity
           </label>
-          <p className="text-xs text-zinc-500 mb-2">
+          <p className="text-xs text-white mb-2">
             How common is magical ability in your world?
           </p>
           <Select
-            value={data.magicRarity}
+            value={safeData.magicRarity}
             onCommit={(value) => onUpdate({ magicRarity: value })}
             options={rarityOptions}
           />
@@ -295,19 +303,19 @@ export default function MagicModelForm({ data, onUpdate }: MagicModelFormProps) 
           <label className="block text-sm font-medium text-white mb-2">
             Cost/Corruption Level
           </label>
-          <p className="text-xs text-zinc-500 mb-2">
+          <p className="text-xs text-white mb-2">
             What price does magic exact from its users?
           </p>
           <Select
-            value={data.corruptionLevel}
+            value={safeData.corruptionLevel}
             onCommit={(value) => onUpdate({ corruptionLevel: value })}
             options={corruptionOptions}
           />
           
-          {data.corruptionLevel === "Custom" && (
+          {safeData.corruptionLevel === "Custom" && (
             <div className="mt-2">
               <Input
-                value={data.corruptionNote}
+                value={safeData.corruptionNote}
                 onCommit={(value) => onUpdate({ corruptionNote: value })}
                 placeholder="Describe your custom corruption system..."
               />
@@ -320,14 +328,14 @@ export default function MagicModelForm({ data, onUpdate }: MagicModelFormProps) 
           <label className="block text-sm font-medium text-white mb-2">
             Unbreakable Rules
           </label>
-          <p className="text-xs text-zinc-500 mb-2">
+          <p className="text-xs text-white mb-2">
             0–10 items, each ≤120 chars. Fundamental magical laws that cannot be broken.
           </p>
           
           <div className="space-y-2">
-            {data.unbreakableRules.map((rule, index) => (
+            {safeData.unbreakableRules.map((rule, index) => (
               <div key={index} className="flex items-start space-x-2">
-                <span className="flex-1 px-3 py-2 bg-white/10 text-zinc-200 rounded text-sm border border-white/20">
+                <span className="flex-1 px-3 py-2 bg-white/10 text-white rounded text-sm border border-white/20">
                   {index + 1}. {rule}
                 </span>
                 <button
@@ -341,7 +349,7 @@ export default function MagicModelForm({ data, onUpdate }: MagicModelFormProps) 
             ))}
           </div>
 
-          {data.unbreakableRules.length < 10 && (
+          {safeData.unbreakableRules.length < 10 && (
             <div className="flex gap-2 mt-2">
               <Input
                 value={newRule}
@@ -360,8 +368,8 @@ export default function MagicModelForm({ data, onUpdate }: MagicModelFormProps) 
             </div>
           )}
 
-          <div className="text-sm text-zinc-200">
-            {data.unbreakableRules.length}/10 rules
+          <div className="text-sm text-white">
+            {safeData.unbreakableRules.length}/10 rules
           </div>
         </div>
       </div>

@@ -34,7 +34,7 @@ const NumberStepper = ({ value, onCommit, min = 0, max = 10, label }: {
       </button>
       <div className="flex flex-col items-center min-w-[3rem]">
         <span className="text-lg font-medium text-white">{value}</span>
-        <span className="text-xs text-zinc-200">{label}</span>
+        <span className="text-xs text-white">{label}</span>
       </div>
       <button
         type="button"
@@ -93,7 +93,7 @@ const NumberInput = ({ value, onCommit, placeholder, min, max }: {
       onChange={handleChange}
       onBlur={handleBlur}
       placeholder={placeholder}
-      className="w-full rounded-lg bg-white/10 text-white placeholder:text-zinc-200 border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400"
+      className="w-full rounded-lg bg-white/10 text-white placeholder:text-white border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400"
     />
   );
 };
@@ -123,10 +123,17 @@ const Input = ({ value, onCommit, placeholder, maxLength }: {
       onBlur={handleBlur}
       placeholder={placeholder}
       maxLength={maxLength}
-      className="w-full rounded-lg bg-white/10 text-white placeholder:text-zinc-200 border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400"
+      className="w-full rounded-lg bg-white/10 text-white placeholder:text-white border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400"
     />
   );
 };
+
+// Sun type definition
+export interface SunData {
+  name: string;
+  cycleDays: number | null;
+  significance: string;
+}
 
 // Moon type definition
 export interface MoonData {
@@ -137,7 +144,7 @@ export interface MoonData {
 
 // Astral Bodies data interface
 export interface AstralBodiesData {
-  sunsCount: number;
+  suns: SunData[];
   moons: MoonData[];
 }
 
@@ -147,18 +154,42 @@ interface AstralBodiesFormProps {
 }
 
 export default function AstralBodiesForm({ data, onUpdate }: AstralBodiesFormProps) {
+  // Ensure arrays are never undefined
+  const safeData = {
+    ...data,
+    suns: data.suns || [],
+    moons: data.moons || []
+  };
+
+  const addSun = () => {
+    const newSuns = [...safeData.suns, { name: "", cycleDays: null, significance: "" }];
+    onUpdate({ suns: newSuns });
+  };
+
+  const removeSun = (index: number) => {
+    const newSuns = safeData.suns.filter((_, i) => i !== index);
+    onUpdate({ suns: newSuns });
+  };
+
+  const updateSun = (index: number, updates: Partial<SunData>) => {
+    const newSuns = safeData.suns.map((sun, i) => 
+      i === index ? { ...sun, ...updates } : sun
+    );
+    onUpdate({ suns: newSuns });
+  };
+
   const addMoon = () => {
-    const newMoons = [...data.moons, { name: "", cycleDays: null, omen: "" }];
+    const newMoons = [...safeData.moons, { name: "", cycleDays: null, omen: "" }];
     onUpdate({ moons: newMoons });
   };
 
   const removeMoon = (index: number) => {
-    const newMoons = data.moons.filter((_, i) => i !== index);
+    const newMoons = safeData.moons.filter((_, i) => i !== index);
     onUpdate({ moons: newMoons });
   };
 
   const updateMoon = (index: number, updates: Partial<MoonData>) => {
-    const newMoons = data.moons.map((moon, i) => 
+    const newMoons = safeData.moons.map((moon, i) => 
       i === index ? { ...moon, ...updates } : moon
     );
     onUpdate({ moons: newMoons });
@@ -168,7 +199,7 @@ export default function AstralBodiesForm({ data, onUpdate }: AstralBodiesFormPro
     <div className="space-y-6">
       <div className="border-b border-white/20 pb-4">
         <h2 className="text-xl font-semibold text-white">Astral Bodies — Player Summary; G.O.D Details</h2>
-        <p className="text-sm text-zinc-200 mt-1">
+        <p className="text-sm text-white mt-1">
           Light cycles, climate flavor, calendars, tides, and magic surges.
         </p>
       </div>
@@ -176,19 +207,85 @@ export default function AstralBodiesForm({ data, onUpdate }: AstralBodiesFormPro
       <div className="space-y-6">
         {/* Suns */}
         <div>
-          <label className="block text-sm font-medium text-white mb-2">
-            Suns (count)
-          </label>
-          <p className="text-xs text-zinc-500 mb-3">
-            Light cycle, climate flavor. 0–5 (usually 1).
+          <div className="flex justify-between items-center mb-2">
+            <label className="block text-sm font-medium text-white">
+              Suns (repeatable)
+            </label>
+            <button
+              type="button"
+              onClick={addSun}
+              className="px-3 py-1 bg-amber-500 text-black text-sm rounded hover:bg-amber-400"
+            >
+              Add Sun
+            </button>
+          </div>
+          <p className="text-xs text-white mb-4">
+            Light cycles, climate flavor. Each sun has a name, cycle length, and optional significance.
           </p>
-          <NumberStepper
-            value={data.sunsCount}
-            onCommit={(value) => onUpdate({ sunsCount: value })}
-            min={0}
-            max={5}
-            label="suns"
-          />
+
+          <div className="space-y-4">
+            {safeData.suns.length === 0 ? (
+              <div className="text-white text-center py-8 border-2 border-dashed border-white/20 rounded">
+                No suns added yet. Click "Add Sun" to create one.
+              </div>
+            ) : (
+              safeData.suns.map((sun, index) => (
+                <div key={index} className="border border-white/20 rounded-lg p-4 bg-white/5">
+                  <div className="flex justify-between items-start mb-4">
+                    <h4 className="text-sm font-medium text-white">
+                      Sun {index + 1}
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={() => removeSun(index)}
+                      className="text-red-400 hover:text-red-300"
+                    >
+                      Remove
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-white mb-1">
+                        Name (≤40 chars)
+                      </label>
+                      <Input
+                        value={sun.name}
+                        onCommit={(value) => updateSun(index, { name: value })}
+                        placeholder="Sun name..."
+                        maxLength={40}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-white mb-1">
+                        Cycle Length (days, 1–999)
+                      </label>
+                      <NumberInput
+                        value={sun.cycleDays}
+                        onCommit={(value) => updateSun(index, { cycleDays: value })}
+                        placeholder="Days"
+                        min={1}
+                        max={999}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-white mb-1">
+                        Significance (≤120 chars)
+                      </label>
+                      <Input
+                        value={sun.significance}
+                        onCommit={(value) => updateSun(index, { significance: value })}
+                        placeholder="Optional significance..."
+                        maxLength={120}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
 
         {/* Moons */}
@@ -205,20 +302,20 @@ export default function AstralBodiesForm({ data, onUpdate }: AstralBodiesFormPro
               Add Moon
             </button>
           </div>
-          <p className="text-xs text-zinc-500 mb-4">
+          <p className="text-xs text-white mb-4">
             Calendars, tides, magic surges. Each moon has a name, cycle length, and optional omens.
           </p>
 
           <div className="space-y-4">
-            {data.moons.length === 0 ? (
-              <div className="text-zinc-200 text-center py-8 border-2 border-dashed border-white/20 rounded">
+            {safeData.moons.length === 0 ? (
+              <div className="text-white text-center py-8 border-2 border-dashed border-white/20 rounded">
                 No moons added yet. Click "Add Moon" to create one.
               </div>
             ) : (
-              data.moons.map((moon, index) => (
+              safeData.moons.map((moon, index) => (
                 <div key={index} className="border border-white/20 rounded-lg p-4 bg-white/5">
                   <div className="flex justify-between items-start mb-4">
-                    <h4 className="text-sm font-medium text-zinc-200">
+                    <h4 className="text-sm font-medium text-white">
                       Moon {index + 1}
                     </h4>
                     <button
@@ -232,7 +329,7 @@ export default function AstralBodiesForm({ data, onUpdate }: AstralBodiesFormPro
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-zinc-200 mb-1">
+                      <label className="block text-xs font-medium text-white mb-1">
                         Name (≤40 chars)
                       </label>
                       <Input
@@ -244,7 +341,7 @@ export default function AstralBodiesForm({ data, onUpdate }: AstralBodiesFormPro
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-zinc-200 mb-1">
+                      <label className="block text-xs font-medium text-white mb-1">
                         Cycle Length (days, 1–999)
                       </label>
                       <NumberInput
@@ -257,7 +354,7 @@ export default function AstralBodiesForm({ data, onUpdate }: AstralBodiesFormPro
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-zinc-200 mb-1">
+                      <label className="block text-xs font-medium text-white mb-1">
                         Omen Notes (≤120 chars)
                       </label>
                       <Input

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 // Import form components
 import BasicInfoForm, { BasicInfoData } from "@/components/worldbuilder/world-details/BasicInfoForm";
@@ -61,7 +62,7 @@ const NavigationTabs = ({ currentSection, onSectionChange }: {
               className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                 currentSection === section.id
                   ? "border-amber-400 text-amber-100"
-                  : "border-transparent text-zinc-300 hover:text-zinc-100 hover:border-white/30"
+                  : "border-transparent text-zinc-100 hover:text-white hover:border-white/30"
               }`}
             >
               <span className="mr-2">{section.icon}</span>
@@ -127,7 +128,7 @@ export default function WorldDetailsPage() {
 
   const [data, setData] = useState<WorldDetailsData>({
     basic: { name: "", pitch: "", tags: [] },
-    astral: { sunsCount: 1, moons: [] },
+    astral: { suns: [], moons: [] },
     time: { dayHours: null, yearDays: null, months: [], weekdays: [], leapRule: "" },
     planet: { 
       planetType: "Terrestrial", 
@@ -151,10 +152,7 @@ export default function WorldDetailsPage() {
       worldShape: "",
       worldSize: "",
       continents: [],
-      regions: [],
       biomes: [],
-      landmarks: [],
-      tradeRoutes: [],
       notes: ""
     },
     technology: {
@@ -194,9 +192,9 @@ export default function WorldDetailsPage() {
     },
     catalogs: {
       languageFamilies: [],
-      currencySystems: [],
       organizations: [],
-      commonItems: [],
+      selectedRaceIds: [],
+      selectedCreatureIds: [],
       organizationTypes: [],
       itemCategories: [],
       rarityLevels: [],
@@ -248,7 +246,7 @@ export default function WorldDetailsPage() {
             tags: details.tags || []
           },
           astral: {
-            sunsCount: details.suns_count || 1,
+            suns: details.suns || [],
             moons: details.moons || []
           },
           time: {
@@ -279,17 +277,19 @@ export default function WorldDetailsPage() {
           geography: {
             worldShape: details.geography_world_shape || "",
             worldSize: details.geography_world_size || "",
-            continents: details.geographyRegions || [],
-            regions: details.geographyRegions || [],
+            continents: details.continents || [],
             biomes: details.geographyBiomes || [],
-            landmarks: details.geographyLandmarks || [],
-            tradeRoutes: details.geographyTradeRoutes || [],
             notes: details.geography_notes || ""
           },
           technology: {
             overallLevel: details.tech_from || "",
             availableCategories: details.technologyCategories || [],
-            customCategories: details.technologyInnovations || [],
+            customCategories: (details.technologyInnovations || []).map((cat: any) => ({
+              category: cat.category || cat,
+              level: cat.level || "",
+              restrictions: cat.restrictions || "",
+              notes: cat.notes || ""
+            })),
             progressionRules: details.technology_progression || "",
             restrictedTechnologies: details.technologyRestrictions || [],
             advancementMechanism: details.technology_advancement || "",
@@ -311,21 +311,65 @@ export default function WorldDetailsPage() {
           },
           cosmology: {
             cosmicStructure: details.cosmology_structure || "",
-            planesOfExistence: details.cosmologyPlanes || [],
-            dimensionalRules: details.cosmologyDimensionalRules || [],
-            deities: details.cosmologyDeities || [],
+            planesOfExistence: (details.cosmologyPlanes || []).map((plane: any) => ({
+              name: plane.name || "",
+              type: plane.type || "",
+              description: plane.description || "",
+              inhabitants: plane.inhabitants || "",
+              accessMethod: plane.accessMethod || "",
+              dangers: plane.dangers || "",
+              nature: plane.nature || ""
+            })),
+            dimensionalRules: (details.cosmologyDimensionalRules || []).map((rule: any) => ({
+              rule: rule.rule || rule,
+              scope: rule.scope || "",
+              effects: rule.effects || "",
+              exceptions: rule.exceptions || ""
+            })),
+            deities: (details.cosmologyDeities || []).map((deity: any) => ({
+              name: deity.name || "",
+              domain: deity.domain || "",
+              stance: deity.stance || "",
+              power: deity.power || "",
+              description: deity.description || "",
+              followers: deity.followers || ""
+            })),
             afterlifeSystem: details.cosmology_afterlife_system || "",
-            afterlifeRealms: details.cosmologyAfterlifeRealms || [],
+            afterlifeRealms: (details.cosmologyAfterlifeRealms || []).map((realm: any) => ({
+              name: realm.name || "",
+              criteria: realm.criteria || "",
+              description: realm.description || "",
+              duration: realm.duration || ""
+            })),
             planarTravel: details.cosmology_planar_travel || "",
             cosmicThreats: details.cosmology_cosmic_threats || "",
             universalLaws: details.cosmology_universal_laws || "",
             notes: details.cosmology_notes || ""
           },
           catalogs: {
-            languageFamilies: details.catalogLanguageFamilies || [],
-            currencySystems: details.catalogCurrencySystems || [],
-            organizations: details.catalogOrganizations || [],
-            commonItems: details.catalogCommonItems || [],
+            languageFamilies: (details.catalogLanguageFamilies || []).map((lang: any) => ({
+              name: lang.name || "",
+              description: lang.description || "",
+              languages: Array.isArray(lang.languages) ? lang.languages : (typeof lang.languages === 'string' ? JSON.parse(lang.languages || '[]') : []),
+              writingSystem: lang.writingSystem || "",
+              speakers: lang.speakers || "",
+              status: lang.status || ""
+            })),
+            organizations: (details.catalogOrganizations || []).map((org: any) => ({
+              name: org.name || "",
+              type: org.type || "",
+              scope: org.scope || "",
+              viewpoint: org.viewpoint || "",
+              goals: org.goals || "",
+              structure: org.structure || "",
+              membership: org.membership || "",
+              resources: org.resources || "",
+              reputation: org.reputation || "",
+              rivals: Array.isArray(org.rivals) ? org.rivals : (typeof org.rivals === 'string' ? JSON.parse(org.rivals || '[]') : []),
+              allies: Array.isArray(org.allies) ? org.allies : (typeof org.allies === 'string' ? JSON.parse(org.allies || '[]') : [])
+            })),
+            selectedRaceIds: (details.races || []).map((race: any) => race.id),
+            selectedCreatureIds: (details.creatures || []).map((creature: any) => creature.id),
             organizationTypes: details.catalogOrganizationTypes || [],
             itemCategories: details.catalogItemCategories || [],
             rarityLevels: details.catalogRarityLevels || [],
@@ -386,7 +430,18 @@ export default function WorldDetailsPage() {
         }
       } else if (section === "astral") {
         updateData.op = "updateBasicInfo";
-        updateData.sunsCount = sectionData.sunsCount;
+        // Handle suns separately
+        if (JSON.stringify(sectionData.suns) !== JSON.stringify(data.astral.suns)) {
+          await fetch("/api/world-details", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              op: "updateSuns",
+              worldId: Number(worldId),
+              suns: sectionData.suns
+            })
+          });
+        }
         // Handle moons separately
         if (JSON.stringify(sectionData.moons) !== JSON.stringify(data.astral.moons)) {
           await fetch("/api/world-details", {
@@ -579,18 +634,6 @@ export default function WorldDetailsPage() {
           });
         }
         
-        if (sectionData.currencySystems && sectionData.currencySystems.length > 0) {
-          await fetch("/api/world-details", {
-            method: "POST", 
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              op: "updateCatalogCurrencySystems",
-              worldId: Number(worldId),
-              currencySystems: sectionData.currencySystems
-            })
-          });
-        }
-        
         if (sectionData.organizations && sectionData.organizations.length > 0) {
           await fetch("/api/world-details", {
             method: "POST",
@@ -603,14 +646,28 @@ export default function WorldDetailsPage() {
           });
         }
         
-        if (sectionData.commonItems && sectionData.commonItems.length > 0) {
+        // Handle races selection
+        if (sectionData.selectedRaceIds !== undefined) {
           await fetch("/api/world-details", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              op: "updateCatalogCommonItems",
+              op: "updateCatalogRaces",
               worldId: Number(worldId),
-              commonItems: sectionData.commonItems
+              raceIds: sectionData.selectedRaceIds
+            })
+          });
+        }
+        
+        // Handle creatures selection
+        if (sectionData.selectedCreatureIds !== undefined) {
+          await fetch("/api/world-details", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              op: "updateCatalogCreatures",
+              worldId: Number(worldId),
+              creatureIds: sectionData.selectedCreatureIds
             })
           });
         }
@@ -740,22 +797,32 @@ export default function WorldDetailsPage() {
   if (error) return <ErrorMessage message={error} />;
 
   return (
-    <form
-      onSubmit={(e) => e.preventDefault()}
+    <div
       className="min-h-screen px-4 md:px-8 py-8 space-y-6 max-w-6xl mx-auto"
       style={{ overflowAnchor: "none" as any }}
     >
       {/* Header */}
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="font-evanescent st-title-gradient text-4xl sm:text-5xl tracking-tight">
-            World Details: {worldName}
-          </h1>
-          <p className="text-zinc-300 text-sm mt-2">
-            Configure the comprehensive foundation of your world according to the new outline
-          </p>
+      <header className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link 
+              href="/worldbuilder/worlds"
+              className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg border border-white/20 transition-colors flex items-center gap-2"
+            >
+              <span>←</span>
+              <span>Back to Worlds</span>
+            </Link>
+            <div>
+              <h1 className="font-evanescent st-title-gradient text-4xl sm:text-5xl tracking-tight">
+                World Details: {worldName}
+              </h1>
+              <p className="text-zinc-300 text-sm mt-2">
+                All changes auto-save when you navigate away from fields
+              </p>
+            </div>
+          </div>
+          <SaveIndicator isSaving={isSaving} lastSaved={lastSaved} />
         </div>
-        <SaveIndicator isSaving={isSaving} lastSaved={lastSaved} />
       </header>
 
       {/* Navigation */}
@@ -797,6 +864,6 @@ export default function WorldDetailsPage() {
           <MasterCatalogsForm data={data.catalogs} onUpdate={updateMasterCatalogs} />
         )}
       </div>
-    </form>
+    </div>
   );
 }

@@ -116,47 +116,6 @@ function parentCandidates(
   return opts;
 }
 
-/* ---------- CSV helper ---------- */
-const HEADER_ALIASES: Record<string, string[]> = {
-  "Primary Attribute": ["primary", "primary attribute", "primary_attr", "attr1"],
-  "Secondary Attribute": ["secondary", "secondary attribute", "secondary_attr", "attr2"],
-  "Skill Type": ["skill type", "type"],
-  "Skill Tier": ["skill tier", "tier"],
-  "Skill Name": ["skill name", "name"],
-  "Parent Skill": ["parent skill", "parents", "parent", "parent(s)"],
-  Definition: ["definition", "desc", "description"],
-};
-
-function pickField(row: Record<string, string>, canonical: keyof typeof HEADER_ALIASES) {
-  const targets = [canonical, ...HEADER_ALIASES[canonical]];
-  for (const t of targets) {
-    if (t in row) return row[t];
-    const k = Object.keys(row).find((k) => k.toLowerCase() === t.toLowerCase());
-    if (k) return row[k];
-  }
-  return "";
-}
-
-function sniffDelimiter(sample: string) {
-  if (sample.includes("\t")) return "\t";
-  if (sample.includes(";")) return ";";
-  return ",";
-}
-
-function parseCSV(text: string, delim: string) {
-  const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
-  if (lines.length === 0) return [] as Record<string, string>[];
-  const headers = lines[0].split(delim).map((h) => h.trim());
-  const rows: Record<string, string>[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(delim);
-    const obj: Record<string, string> = {};
-    headers.forEach((h, idx) => (obj[h] = (cols[idx] ?? "").trim()));
-    rows.push(obj);
-  }
-  return rows;
-}
-
 /* ==========================================================
    MAGIC BUILDER — visual only (no localStorage)
    ========================================================== */
@@ -923,7 +882,6 @@ export default function SkillsetsPage() {
   const [pageIndex, setPageIndex] = useState<number>(0);
   const [mode, setMode] = useState<"list" | "edit">("list");
   const [showDetails, setShowDetails] = useState<boolean>(false);
-  const fileRef = useRef<HTMLInputElement | null>(null);
 
   // tolerant initial load
   useEffect(() => {
@@ -1086,71 +1044,6 @@ export default function SkillsetsPage() {
     );
   }, [skills, active]);
 
-  // Importer — hydrate only
-  async function handleImport(file: File) {
-    const text = await file.text();
-    const delim = file.name.toLowerCase().endsWith(".tsv") ? "\t" : sniffDelimiter(text.slice(0, 4096));
-    const rows = parseCSV(text.replace(/^\uFEFF/, ""), delim);
-    if (!rows.length) return;
-    const created: { name: string; parentStr: string }[] = [];
-    const newSkills: Skill[] = [];
-    for (const r of rows) {
-      let primary = (pickField(r, "Primary Attribute") || "NA").toUpperCase();
-      let secondary = (pickField(r, "Secondary Attribute") || "NA").toUpperCase();
-      if (primary === "CHR") primary = "CHA";
-      if (secondary === "CHR") secondary = "CHA";
-      const stype = (pickField(r, "Skill Type") || "standard").toLowerCase() as SkillType;
-      const tierRaw = (pickField(r, "Skill Tier") || "").trim();
-      const tier: number | null =
-        tierRaw === "" || /^(n\/a|—|-)$/i.test(tierRaw) ? null : parseInt(tierRaw, 10) || null;
-      const name = pickField(r, "Skill Name");
-      const definition = pickField(r, "Definition");
-      if (!name) continue;
-      const s: Skill = {
-        id: uid(),
-        name,
-        type: TYPE_ITEMS.includes(stype) ? stype : "standard",
-        tier,
-        primary_attribute: ATTR_ITEMS.includes(primary as Attr) ? (primary as Attr) : "NA",
-        secondary_attribute: ATTR_ITEMS.includes(secondary as Attr) ? (secondary as Attr) : "NA",
-        definition,
-        parent_id: null,
-        parent2_id: null,
-        parent3_id: null,
-        created_by: null,
-        created_at: new Date().toISOString(),
-        updated_at: null,
-      };
-      newSkills.push(s);
-      created.push({ name, parentStr: pickField(r, "Parent Skill") || "" });
-    }
-    setSkills((prev) => {
-      const merged = [...newSkills, ...prev];
-      const nameToId = new Map(merged.map((s) => [s.name, String(s.id)]));
-      created.forEach((item) => {
-        const nm = item.name;
-        const raw = (item.parentStr || "").trim();
-        if (!raw || /^(n\/a|—|-|none)$/i.test(raw)) return;
-        const parentNames = raw.split(",").map((p) => p.trim()).filter(Boolean);
-        const ordered = parentNames
-          .map((p) => nameToId.get(p))
-          .filter(Boolean)
-          .filter((v, i, a) => a!.indexOf(v!) === i)
-          .slice(0, 3) as string[];
-        const idx = merged.findIndex((s) => s.name === nm);
-        if (idx >= 0) {
-          merged[idx] = {
-            ...merged[idx],
-            parent_id: ordered[0] ?? null,
-            parent2_id: ordered[1] ?? null,
-            parent3_id: ordered[2] ?? null,
-          };
-        }
-      });
-      return merged;
-    });
-  }
-
   const showMagicBuilder =
     showDetails &&
     active &&
@@ -1160,25 +1053,25 @@ export default function SkillsetsPage() {
   return (
     <main className="min-h-screen px-6 py-10">
       {/* Header */}
-      <header className="max-w-7xl mx-auto mb-8 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/worldbuilder"
-            className="rounded-xl border border-white/15 px-3 py-1.5 text-sm text-zinc-200 hover:bg-white/10"
-            aria-label="Go back"
-          >
-            ← World Builder
-          </Link>
-
-          <div>
+      <header className="max-w-7xl mx-auto mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <Link
+              href="/worldbuilder"
+              className="rounded-xl border border-white/15 px-3 py-1.5 text-sm text-zinc-200 hover:bg-white/10"
+              aria-label="Go back"
+            >
+              ← World Builder
+            </Link>
             <h1 className="font-evanescent st-title-gradient text-4xl sm:text-5xl tracking-tight">
               Skill&nbsp;Sets
             </h1>
-            <p className="mt-1 text-sm text-zinc-300">Grouped skills for races, classes, and modules.</p>
           </div>
+          <WBNav current="skillsets" />
         </div>
-
-        <WBNav current="skillsets" />
+        <p className="text-sm text-zinc-300">
+          Grouped skills for races, classes, and modules.
+        </p>
       </header>
 
       {/* Shell */}
@@ -1260,20 +1153,6 @@ export default function SkillsetsPage() {
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <div className="ml-auto flex items-center gap-2">
             <button className="btn btn-gold" onClick={onNew}>New</button>
-            <button className="btn btn-gold" onClick={() => fileRef.current?.click()} title="Import CSV/TSV">
-              Import
-            </button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".csv,.tsv,.txt"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) handleImport(f);
-                (e.target as HTMLInputElement).value = "";
-              }}
-            />
             <button className="btn btn-gold" onClick={saveActive}>💾 Save</button>
             <button onClick={onDelete} disabled={!active} className="btn btn-gold disabled:opacity-50" title="Delete selected">
               Delete

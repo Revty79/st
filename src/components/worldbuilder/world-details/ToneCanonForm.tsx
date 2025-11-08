@@ -28,7 +28,7 @@ const Input = ({ value, onCommit, placeholder, className, maxLength }: {
       onBlur={handleBlur}
       placeholder={placeholder}
       maxLength={maxLength}
-      className={`w-full rounded-lg bg-white/10 text-white placeholder:text-zinc-300 border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400 ${className || ""}`}
+      className={`w-full rounded-lg bg-white/10 text-white placeholder:text-white border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400 ${className || ""}`}
     />
   );
 };
@@ -61,11 +61,11 @@ const Textarea = ({ value, onCommit, placeholder, className, maxLength }: {
         onBlur={handleBlur}
         placeholder={placeholder}
         maxLength={maxLength}
-        className={`w-full rounded-lg bg-white/10 text-white placeholder:text-zinc-300 border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400 resize-y ${className || ""}`}
+        className={`w-full rounded-lg bg-white/10 text-white placeholder:text-white border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400 resize-y ${className || ""}`}
         rows={3}
       />
       {maxLength && (
-        <div className="text-sm text-zinc-200 mt-1 text-right">
+        <div className="text-sm text-white mt-1 text-right">
           {charCount}/{maxLength}
         </div>
       )}
@@ -157,7 +157,7 @@ const TagInput = ({ tags, onCommit, predefinedOptions, placeholder, maxTags = 10
               type="button"
               onClick={() => addTag(tag)}
               disabled={tags.length >= maxTags}
-              className="px-2 py-1 text-sm border border-white/20 rounded bg-white/5 text-zinc-200 hover:bg-white/10 disabled:opacity-50"
+              className="px-2 py-1 text-sm border border-white/20 rounded bg-white/5 text-white hover:bg-white/10 disabled:opacity-50"
             >
               {tag}
             </button>
@@ -172,7 +172,7 @@ const TagInput = ({ tags, onCommit, predefinedOptions, placeholder, maxTags = 10
           onKeyPress={handleKeyPress}
           placeholder={placeholder}
           disabled={tags.length >= maxTags}
-          className="flex-1 rounded-lg bg-white/10 text-white placeholder:text-zinc-300 border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400 disabled:bg-white/5"
+          className="flex-1 rounded-lg bg-white/10 text-white placeholder:text-white border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400 disabled:bg-white/5"
         />
         <button
           type="button"
@@ -184,7 +184,7 @@ const TagInput = ({ tags, onCommit, predefinedOptions, placeholder, maxTags = 10
         </button>
       </div>
       
-      <div className="text-sm text-zinc-200">
+      <div className="text-sm text-white">
         {tags.length}/{maxTags} tags
       </div>
     </div>
@@ -322,7 +322,7 @@ export default function ToneCanonForm({ data, onUpdate }: ToneCanonFormProps) {
     <div className="space-y-6">
       <div className="border-b border-white/20 pb-4">
         <h2 className="text-xl font-semibold text-white">Tone & Canon — Player Expectations; G.O.D Guidelines</h2>
-        <p className="text-sm text-zinc-200 mt-1">
+        <p className="text-sm text-white mt-1">
           Sets narrative style, content boundaries, and thematic elements. Guides both players and game masters.
         </p>
       </div>
@@ -333,7 +333,7 @@ export default function ToneCanonForm({ data, onUpdate }: ToneCanonFormProps) {
           <label className="block text-sm font-medium text-white mb-2">
             Tone Flags
           </label>
-          <p className="text-xs text-zinc-200 mb-2">
+          <p className="text-xs text-white mb-2">
             Tags that describe the overall feel and style of your world.
           </p>
           <TagInput
@@ -351,7 +351,7 @@ export default function ToneCanonForm({ data, onUpdate }: ToneCanonFormProps) {
             <label className="block text-sm font-medium text-white mb-2">
               Content Rating
             </label>
-            <p className="text-xs text-zinc-200 mb-2">
+            <p className="text-xs text-white mb-2">
               Age-appropriate content level.
             </p>
             <Select
@@ -366,7 +366,7 @@ export default function ToneCanonForm({ data, onUpdate }: ToneCanonFormProps) {
             <label className="block text-sm font-medium text-white mb-2">
               Content Warnings
             </label>
-            <p className="text-xs text-zinc-200 mb-2">
+            <p className="text-xs text-white mb-2">
               Specific content that might require warnings.
             </p>
             <TagInput
@@ -384,7 +384,7 @@ export default function ToneCanonForm({ data, onUpdate }: ToneCanonFormProps) {
           <label className="block text-sm font-medium text-white mb-2">
             Primary Narrative Style
           </label>
-          <p className="text-xs text-zinc-200 mb-2">
+          <p className="text-xs text-white mb-2">
             The main storytelling approach for your world.
           </p>
           <Select
@@ -410,7 +410,7 @@ export default function ToneCanonForm({ data, onUpdate }: ToneCanonFormProps) {
                 Add Style
               </button>
             </div>
-            <p className="text-xs text-zinc-200 mb-4">
+            <p className="text-xs text-white mb-4">
               Define your unique narrative approaches.
             </p>
 
@@ -432,7 +432,7 @@ export default function ToneCanonForm({ data, onUpdate }: ToneCanonFormProps) {
 
                   <div className="grid grid-cols-1 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-zinc-200 mb-1">
+                      <label className="block text-xs font-medium text-white mb-1">
                         Style Name
                       </label>
                       <Input
@@ -444,7 +444,7 @@ export default function ToneCanonForm({ data, onUpdate }: ToneCanonFormProps) {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-zinc-200 mb-1">
+                      <label className="block text-xs font-medium text-white mb-1">
                         Description
                       </label>
                       <Textarea
@@ -456,7 +456,7 @@ export default function ToneCanonForm({ data, onUpdate }: ToneCanonFormProps) {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-zinc-200 mb-1">
+                      <label className="block text-xs font-medium text-white mb-1">
                         Examples & Guidelines
                       </label>
                       <Textarea
@@ -478,7 +478,7 @@ export default function ToneCanonForm({ data, onUpdate }: ToneCanonFormProps) {
           <label className="block text-sm font-medium text-white mb-2">
             Thematic Elements
           </label>
-          <p className="text-xs text-zinc-200 mb-2">
+          <p className="text-xs text-white mb-2">
             Core themes and philosophical concepts in your world.
           </p>
           <TagInput
@@ -495,7 +495,7 @@ export default function ToneCanonForm({ data, onUpdate }: ToneCanonFormProps) {
           <label className="block text-sm font-medium text-white mb-2">
             Common Conflict Types
           </label>
-          <p className="text-xs text-zinc-200 mb-2">
+          <p className="text-xs text-white mb-2">
             Types of conflicts that commonly occur in your world.
           </p>
           <TagInput
@@ -521,7 +521,7 @@ export default function ToneCanonForm({ data, onUpdate }: ToneCanonFormProps) {
               Add Rule
             </button>
           </div>
-          <p className="text-xs text-zinc-200 mb-4">
+          <p className="text-xs text-white mb-4">
             Unbreakable narrative and thematic rules that define your world.
           </p>
 
@@ -543,7 +543,7 @@ export default function ToneCanonForm({ data, onUpdate }: ToneCanonFormProps) {
 
                 <div className="grid grid-cols-1 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
+                    <label className="block text-xs font-medium text-white mb-1">
                       Rule Statement
                     </label>
                     <Input
@@ -555,7 +555,7 @@ export default function ToneCanonForm({ data, onUpdate }: ToneCanonFormProps) {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
+                    <label className="block text-xs font-medium text-white mb-1">
                       Explanation
                     </label>
                     <Textarea
@@ -567,7 +567,7 @@ export default function ToneCanonForm({ data, onUpdate }: ToneCanonFormProps) {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-zinc-200 mb-1">
+                    <label className="block text-xs font-medium text-white mb-1">
                       Consequences of Breaking
                     </label>
                     <Textarea
@@ -588,7 +588,7 @@ export default function ToneCanonForm({ data, onUpdate }: ToneCanonFormProps) {
           <label className="block text-sm font-medium text-white mb-2">
             Mood & Atmosphere
           </label>
-          <p className="text-xs text-zinc-200 mb-2">
+          <p className="text-xs text-white mb-2">
             Overall emotional feel and atmosphere of your world.
           </p>
           <Textarea
@@ -605,7 +605,7 @@ export default function ToneCanonForm({ data, onUpdate }: ToneCanonFormProps) {
           <label className="block text-sm font-medium text-white mb-2">
             Player Expectations
           </label>
-          <p className="text-xs text-zinc-200 mb-2">
+          <p className="text-xs text-white mb-2">
             What players should expect when playing in this world.
           </p>
           <Textarea
@@ -622,7 +622,7 @@ export default function ToneCanonForm({ data, onUpdate }: ToneCanonFormProps) {
           <label className="block text-sm font-medium text-white mb-2">
             Game Master Guidance
           </label>
-          <p className="text-xs text-zinc-200 mb-2">
+          <p className="text-xs text-white mb-2">
             Guidelines for GMs running games in this world.
           </p>
           <Textarea

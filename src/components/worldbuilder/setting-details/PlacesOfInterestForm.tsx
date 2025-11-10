@@ -1,7 +1,7 @@
 // Places of Interest Form
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import FormField from "@/components/shared/FormField";
 import { 
   PlacesOfInterestData,
@@ -782,58 +782,795 @@ export function MagicProfileForm({ data, onUpdate, eraData }: MagicProfileFormPr
 }
 
 export function RacesBeingsForm({ data, onUpdate }: { data: RacesBeingsData; onUpdate: (updates: Partial<RacesBeingsData>) => void }) {
+  const handleRaceAvailabilityChange = (race: string, availability: 'Playable' | 'NPC-only' | 'Other') => {
+    onUpdate({
+      raceAvailability: { ...data.raceAvailability, [race]: availability }
+    });
+  };
+
+  const handleRaceNoteChange = (race: string, note: string) => {
+    onUpdate({
+      raceNotes: { ...data.raceNotes, [race]: note }
+    });
+  };
+
+  const handleAddRace = () => {
+    const raceName = prompt("Enter race name:");
+    if (raceName && raceName.trim()) {
+      onUpdate({
+        raceAvailability: { ...data.raceAvailability, [raceName.trim()]: 'Playable' },
+        raceNotes: { ...data.raceNotes, [raceName.trim()]: '' }
+      });
+    }
+  };
+
+  const handleRemoveRace = (race: string) => {
+    if (confirm(`Remove ${race}?`)) {
+      const newAvailability = { ...data.raceAvailability };
+      const newNotes = { ...data.raceNotes };
+      delete newAvailability[race];
+      delete newNotes[race];
+      onUpdate({
+        raceAvailability: newAvailability,
+        raceNotes: newNotes
+      });
+    }
+  };
+
+  // Common fantasy races as defaults
+  const defaultRaces = ['Human', 'Elf', 'Dwarf', 'Halfling', 'Dragonborn', 'Tiefling', 'Gnome', 'Half-Elf', 'Half-Orc'];
+  
+  // Combine default races with custom ones
+  const allRaces = [...new Set([...defaultRaces, ...Object.keys(data.raceAvailability)])];
+
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-white">Races & Beings</h2>
-      <div className="p-4 border border-amber-500/30 bg-amber-950/30 rounded-lg">
-        <p className="text-amber-200">This form is under construction.</p>
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-white">Races & Beings</h2>
+        <div className="text-sm text-violet-400">Advanced Section</div>
+      </div>
+
+      <div className="text-sm text-zinc-300 bg-blue-950/30 border border-blue-500/30 rounded-lg p-4">
+        <strong>Purpose:</strong> Define which races are available to players and how they're perceived in this setting.
+      </div>
+
+      <div className="flex justify-between items-center">
+        <h3 className="text-xl font-semibold text-white">Race Availability</h3>
+        <button
+          onClick={handleAddRace}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+        >
+          Add Custom Race
+        </button>
+      </div>
+
+      <div className="space-y-4">
+        {allRaces.map((race) => (
+          <div key={race} className="bg-zinc-800/50 border border-zinc-600/50 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-lg font-medium text-white">{race}</h4>
+              {!defaultRaces.includes(race) && (
+                <button
+                  onClick={() => handleRemoveRace(race)}
+                  className="px-2 py-1 text-red-400 hover:text-red-300 hover:bg-red-900/30 rounded"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-zinc-200 mb-2">
+                  Availability
+                </label>
+                <select
+                  value={data.raceAvailability[race] || 'Playable'}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleRaceAvailabilityChange(race, e.target.value as 'Playable' | 'NPC-only' | 'Other')}
+                  className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white"
+                >
+                  <option value="Playable">Playable</option>
+                  <option value="NPC-only">NPC-only</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-zinc-200 mb-2">
+                  Regional Notes
+                </label>
+                <FormField
+                  label=""
+                  value={data.raceNotes[race] || ''}
+                  onChange={(value: string) => handleRaceNoteChange(race, value)}
+                  placeholder="Local customs, restrictions, or cultural notes..."
+                  maxLength={200}
+                  showLabel={false}
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-zinc-800/50 border border-zinc-600/50 rounded-lg p-4">
+        <h4 className="text-sm font-semibold text-zinc-200 mb-2">Guidelines:</h4>
+        {React.createElement('ul', {
+          className: "text-xs text-zinc-400 space-y-1"
+        }, [
+          React.createElement('li', { key: 1 }, "• Playable: Available as player characters"),
+          React.createElement('li', { key: 2 }, "• NPC-only: Present in world but not as PCs"),
+          React.createElement('li', { key: 3 }, "• Other: Special circumstances or restrictions"),
+          React.createElement('li', { key: 4 }, "• Use Regional Notes for cultural context and local variations")
+        ])}
       </div>
     </div>
   );
 }
 
 export function CreaturesForm({ data, onUpdate }: { data: CreaturesData; onUpdate: (updates: Partial<CreaturesData>) => void }) {
+  const handleCreatureStatusChange = (creature: string, status: 'Common' | 'Uncommon' | 'Rare' | 'Protected' | 'Hunted') => {
+    onUpdate({
+      creatureStatus: { ...data.creatureStatus, [creature]: status }
+    });
+  };
+
+  const handleAreaChange = (creature: string, areas: string) => {
+    const areaArray = areas.split(',').map(s => s.trim()).filter(s => s);
+    onUpdate({
+      regionalAreas: { ...data.regionalAreas, [creature]: areaArray }
+    });
+  };
+
+  const handleModifierChange = (field: keyof typeof data.localModifiers, value: string) => {
+    onUpdate({
+      localModifiers: { ...data.localModifiers, [field]: value }
+    });
+  };
+
+  const handleAddCreature = () => {
+    const creatureName = prompt("Enter creature name:");
+    if (creatureName && creatureName.trim()) {
+      onUpdate({
+        creatureStatus: { ...data.creatureStatus, [creatureName.trim()]: 'Common' },
+        regionalAreas: { ...data.regionalAreas, [creatureName.trim()]: [] }
+      });
+    }
+  };
+
+  const handleRemoveCreature = (creature: string) => {
+    if (confirm(`Remove ${creature}?`)) {
+      const newStatus = { ...data.creatureStatus };
+      const newAreas = { ...data.regionalAreas };
+      delete newStatus[creature];
+      delete newAreas[creature];
+      onUpdate({
+        creatureStatus: newStatus,
+        regionalAreas: newAreas
+      });
+    }
+  };
+
+  // Common fantasy creatures as defaults
+  const defaultCreatures = [
+    'Wolf', 'Bear', 'Goblin', 'Orc', 'Dragon', 'Giant Spider', 'Owlbear', 
+    'Basilisk', 'Troll', 'Wyvern', 'Bandit', 'Undead', 'Fey', 'Elemental'
+  ];
+
+  // Combine default creatures with custom ones
+  const allCreatures = [...new Set([...defaultCreatures, ...Object.keys(data.creatureStatus)])];
+
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-white">Creatures</h2>
-      <div className="p-4 border border-amber-500/30 bg-amber-950/30 rounded-lg">
-        <p className="text-amber-200">This form is under construction.</p>
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-white">Creatures</h2>
+        <div className="text-sm text-violet-400">Advanced Section</div>
+      </div>
+
+      <div className="text-sm text-zinc-300 bg-blue-950/30 border border-blue-500/30 rounded-lg p-4">
+        <strong>Purpose:</strong> Define creature availability and encounter parameters for this region.
+      </div>
+
+      {/* Local Modifiers */}
+      <div className="bg-zinc-800/50 border border-zinc-600/50 rounded-lg p-4">
+        <h3 className="text-lg font-semibold text-white mb-4">Regional Encounter Modifiers</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <FormField
+            label="Encounter Difficulty"
+            value={data.localModifiers.encounterDifficulty}
+            onChange={(value: string) => handleModifierChange('encounterDifficulty', value)}
+            placeholder="Normal / Increased / Reduced"
+          />
+          <FormField
+            label="Seasonal Window"
+            value={data.localModifiers.seasonalWindow}
+            onChange={(value: string) => handleModifierChange('seasonalWindow', value)}
+            placeholder="Year-round / Spring-Summer / etc."
+          />
+          <FormField
+            label="Laws & Protections"
+            value={data.localModifiers.lawsProtections}
+            onChange={(value: string) => handleModifierChange('lawsProtections', value)}
+            placeholder="Royal hunting preserve / Open season / etc."
+          />
+        </div>
+      </div>
+
+      {/* Creature Status */}
+      <div className="flex justify-between items-center">
+        <h3 className="text-xl font-semibold text-white">Creature Status</h3>
+        <button
+          onClick={handleAddCreature}
+          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
+        >
+          Add Custom Creature
+        </button>
+      </div>
+
+      <div className="space-y-4">
+        {allCreatures.map((creature) => (
+          <div key={creature} className="bg-zinc-800/50 border border-zinc-600/50 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-lg font-medium text-white">{creature}</h4>
+              {!defaultCreatures.includes(creature) && (
+                <button
+                  onClick={() => handleRemoveCreature(creature)}
+                  className="px-2 py-1 text-red-400 hover:text-red-300 hover:bg-red-900/30 rounded"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-zinc-200 mb-2">
+                  Regional Status
+                </label>
+                <select
+                  value={data.creatureStatus[creature] || 'Common'}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleCreatureStatusChange(creature, e.target.value as any)}
+                  className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white"
+                >
+                  <option value="Common">Common</option>
+                  <option value="Uncommon">Uncommon</option>
+                  <option value="Rare">Rare</option>
+                  <option value="Protected">Protected</option>
+                  <option value="Hunted">Hunted</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-zinc-200 mb-2">
+                  Regional Areas (comma-separated)
+                </label>
+                <FormField
+                  label=""
+                  value={(data.regionalAreas[creature] || []).join(', ')}
+                  onChange={(value: string) => handleAreaChange(creature, value)}
+                  placeholder="forests, mountains, caves..."
+                  showLabel={false}
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-zinc-800/50 border border-zinc-600/50 rounded-lg p-4">
+        <h4 className="text-sm font-semibold text-zinc-200 mb-2">Status Guidelines:</h4>
+        {React.createElement('ul', {
+          className: "text-xs text-zinc-400 space-y-1"
+        }, [
+          React.createElement('li', { key: 1 }, "• Common: Regularly encountered, no special circumstances"),
+          React.createElement('li', { key: 2 }, "• Uncommon: Occasional encounters, specific conditions"),
+          React.createElement('li', { key: 3 }, "• Rare: Very infrequent, special events or locations"),
+          React.createElement('li', { key: 4 }, "• Protected: Legally protected, penalties for harming"),
+          React.createElement('li', { key: 5 }, "• Hunted: Actively pursued, bounties may be offered")
+        ])}
       </div>
     </div>
   );
 }
 
 export function DeitiesBeliefForm({ data, onUpdate }: { data: DeitiesBeliefData; onUpdate: (updates: Partial<DeitiesBeliefData>) => void }) {
+  const handleDeityInfluenceChange = (deity: string, influence: 'Low' | 'Medium' | 'High' | 'Dominant') => {
+    onUpdate({
+      chosenDeities: { ...data.chosenDeities, [deity]: influence }
+    });
+  };
+
+  const handleTeachingChange = (deity: string, teaching: string) => {
+    onUpdate({
+      teachingsWorship: { ...data.teachingsWorship, [deity]: teaching }
+    });
+  };
+
+  const handleAddDeity = () => {
+    const deityName = prompt("Enter deity or belief system name:");
+    if (deityName && deityName.trim()) {
+      onUpdate({
+        chosenDeities: { ...data.chosenDeities, [deityName.trim()]: 'Low' },
+        teachingsWorship: { ...data.teachingsWorship, [deityName.trim()]: '' }
+      });
+    }
+  };
+
+  const handleRemoveDeity = (deity: string) => {
+    if (confirm(`Remove ${deity}?`)) {
+      const newDeities = { ...data.chosenDeities };
+      const newTeachings = { ...data.teachingsWorship };
+      delete newDeities[deity];
+      delete newTeachings[deity];
+      onUpdate({
+        chosenDeities: newDeities,
+        teachingsWorship: newTeachings
+      });
+    }
+  };
+
+  // Common fantasy deities/belief systems as defaults
+  const defaultDeities = [
+    'Nature Spirits', 'Ancestor Worship', 'Solar Deity', 'Storm Lord', 
+    'Death God', 'War God', 'Wisdom Goddess', 'Trickster', 'Sea God',
+    'Mountain King', 'Moon Goddess', 'Fire Lord'
+  ];
+
+  // Combine default deities with custom ones
+  const allDeities = [...new Set([...defaultDeities, ...Object.keys(data.chosenDeities)])];
+
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-white">Deities & Belief</h2>
-      <div className="p-4 border border-amber-500/30 bg-amber-950/30 rounded-lg">
-        <p className="text-amber-200">This form is under construction.</p>
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-white">Deities & Belief</h2>
+        <div className="text-sm text-violet-400">Advanced Section</div>
+      </div>
+
+      <div className="text-sm text-zinc-300 bg-blue-950/30 border border-blue-500/30 rounded-lg p-4">
+        <strong>Purpose:</strong> Define religious and spiritual influences in this setting, from dominant faiths to local customs.
+      </div>
+
+      <div className="flex justify-between items-center">
+        <h3 className="text-xl font-semibold text-white">Religious Influence</h3>
+        <button
+          onClick={handleAddDeity}
+          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg"
+        >
+          Add Deity/Belief
+        </button>
+      </div>
+
+      <div className="space-y-4">
+        {allDeities.map((deity) => (
+          <div key={deity} className="bg-zinc-800/50 border border-zinc-600/50 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-lg font-medium text-white">{deity}</h4>
+              {!defaultDeities.includes(deity) && (
+                <button
+                  onClick={() => handleRemoveDeity(deity)}
+                  className="px-2 py-1 text-red-400 hover:text-red-300 hover:bg-red-900/30 rounded"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-zinc-200 mb-2">
+                  Regional Influence
+                </label>
+                <select
+                  value={data.chosenDeities[deity] || 'Low'}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleDeityInfluenceChange(deity, e.target.value as any)}
+                  className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white"
+                >
+                  <option value="Low">Low</option>
+                  <option value="Medium">Medium</option>
+                  <option value="High">High</option>
+                  <option value="Dominant">Dominant</option>
+                </select>
+              </div>
+              
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-zinc-200 mb-2">
+                  Local Teachings & Worship
+                </label>
+                <FormField
+                  label=""
+                  value={data.teachingsWorship[deity] || ''}
+                  onChange={(value: string) => handleTeachingChange(deity, value)}
+                  placeholder="Local customs, temples, festivals, taboos..."
+                  maxLength={300}
+                  showLabel={false}
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-zinc-800/50 border border-zinc-600/50 rounded-lg p-4">
+        <h4 className="text-sm font-semibold text-zinc-200 mb-2">Influence Guidelines:</h4>
+        {React.createElement('ul', {
+          className: "text-xs text-zinc-400 space-y-1"
+        }, [
+          React.createElement('li', { key: 1 }, "• Low: Minority followers, little social influence"),
+          React.createElement('li', { key: 2 }, "• Medium: Established presence, some political weight"),
+          React.createElement('li', { key: 3 }, "• High: Major social force, influences law and culture"),
+          React.createElement('li', { key: 4 }, "• Dominant: Primary religious authority, shapes society"),
+          React.createElement('li', { key: 5 }, "• Use Teachings field for local practices, holidays, taboos")
+        ])}
       </div>
     </div>
   );
 }
 
 export function RelationsLawForm({ data, onUpdate }: { data: RelationsLawData; onUpdate: (updates: Partial<RelationsLawData>) => void }) {
+  const handleGovernanceChange = (field: keyof typeof data.governance, value: string) => {
+    onUpdate({
+      governance: { ...data.governance, [field]: value }
+    });
+  };
+
+  const handleConsequenceChange = (action: string, consequence: string) => {
+    if (consequence.trim() === '') {
+      const newTable = { ...data.consequencesTable };
+      delete newTable[action];
+      onUpdate({ consequencesTable: newTable });
+    } else {
+      onUpdate({
+        consequencesTable: { ...data.consequencesTable, [action]: consequence }
+      });
+    }
+  };
+
+  const handleAddConsequence = () => {
+    const action = prompt("Enter PC action (e.g., 'Steals from a merchant'):");
+    if (action && action.trim()) {
+      onUpdate({
+        consequencesTable: { ...data.consequencesTable, [action.trim()]: '' }
+      });
+    }
+  };
+
+  const handleRemoveConsequence = (action: string) => {
+    if (confirm(`Remove consequence rule for "${action}"?`)) {
+      const newTable = { ...data.consequencesTable };
+      delete newTable[action];
+      onUpdate({ consequencesTable: newTable });
+    }
+  };
+
+  const handleAddCourt = () => {
+    const courtName = prompt("Enter court/tribunal name:");
+    if (courtName && courtName.trim()) {
+      onUpdate({
+        governance: {
+          ...data.governance,
+          courts: [...data.governance.courts, courtName.trim()]
+        }
+      });
+    }
+  };
+
+  const handleUpdateCourt = (index: number, value: string) => {
+    const newCourts = [...data.governance.courts];
+    newCourts[index] = value;
+    onUpdate({
+      governance: { ...data.governance, courts: newCourts }
+    });
+  };
+
+  const handleRemoveCourt = (index: number) => {
+    const newCourts = data.governance.courts.filter((_: string, i: number) => i !== index);
+    onUpdate({
+      governance: { ...data.governance, courts: newCourts }
+    });
+  };
+
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-white">Relations & Law</h2>
-      <div className="p-4 border border-amber-500/30 bg-amber-950/30 rounded-lg">
-        <p className="text-amber-200">This form is under construction.</p>
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-white">Relations & Law</h2>
+        <div className="text-sm text-violet-400">Advanced Section</div>
+      </div>
+
+      <div className="text-sm text-zinc-300 bg-blue-950/30 border border-blue-500/30 rounded-lg p-4">
+        <strong>Purpose:</strong> Define how justice, governance, and social order function in this setting.
+      </div>
+
+      {/* Governance Structure */}
+      <div className="bg-zinc-800/50 border border-zinc-600/50 rounded-lg p-4">
+        <h3 className="text-lg font-semibold text-white mb-4">Governance Structure</h3>
+        <div className="space-y-4">
+          <FormField
+            label="Who Decides (Authority)"
+            value={data.governance.whoDecides}
+            onChange={(value: string) => handleGovernanceChange('whoDecides', value)}
+            placeholder="Mayor, Council of Elders, Noble House, etc."
+          />
+          
+          <FormField
+            label="How It Reaches the Streets"
+            value={data.governance.howItReachesStreets}
+            onChange={(value: string) => handleGovernanceChange('howItReachesStreets', value)}
+            placeholder="Town criers, posted notices, guards, etc."
+          />
+          
+          <FormField
+            label="Enforcement Style"
+            value={data.governance.enforcementStyle}
+            onChange={(value: string) => handleGovernanceChange('enforcementStyle', value)}
+            placeholder="Heavy-handed, corrupt, fair but slow, etc."
+          />
+        </div>
+      </div>
+
+      {/* Courts & Tribunals */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-white">Courts & Tribunals</h3>
+          <button
+            onClick={handleAddCourt}
+            className="px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+          >
+            Add Court
+          </button>
+        </div>
+        
+        <div className="space-y-3">
+          {data.governance.courts.map((court: string, index: number) => (
+            <div key={index} className="flex gap-3 items-start">
+              <div className="flex-1">
+                <FormField
+                  label={`Court ${index + 1}`}
+                  value={court}
+                  onChange={(value: string) => handleUpdateCourt(index, value)}
+                  placeholder="e.g. Trade Disputes Court, Criminal Tribunal"
+                  showLabel={false}
+                />
+              </div>
+              <button
+                onClick={() => handleRemoveCourt(index)}
+                className="px-2 py-1 text-red-400 hover:text-red-300 hover:bg-red-900/30 rounded"
+                title="Remove court"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+          {data.governance.courts.length === 0 && (
+            <div className="text-zinc-400 text-sm italic">
+              Add courts or tribunals that handle different types of cases.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Justice Examples */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FormField
+          label="Fair Justice Example"
+          value={data.governance.fairExample}
+          onChange={(value: string) => handleGovernanceChange('fairExample', value)}
+          placeholder="A case where justice was served properly..."
+          textarea={true}
+        />
+        
+        <FormField
+          label="Unfair Justice Example"
+          value={data.governance.unfairExample}
+          onChange={(value: string) => handleGovernanceChange('unfairExample', value)}
+          placeholder="A case where justice was corrupted or failed..."
+          textarea={true}
+        />
+      </div>
+
+      {/* Consequences Table */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-white">Consequences Table</h3>
+          <button
+            onClick={handleAddConsequence}
+            className="px-3 py-1 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg"
+          >
+            Add Rule
+          </button>
+        </div>
+        <div className="text-sm text-zinc-400 mb-4">
+          Define "If PC does X, then likely Y" rules for common actions.
+        </div>
+        
+        <div className="space-y-3">
+          {Object.entries(data.consequencesTable).map(([action, consequence]) => (
+            <div key={action} className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+              <div className="font-medium text-zinc-200 p-2 bg-zinc-700/50 rounded">
+                If PC: {action}
+              </div>
+              <div className="flex gap-3 items-start">
+                <FormField
+                  label=""
+                  value={consequence}
+                  onChange={(value: string) => handleConsequenceChange(action, value)}
+                  placeholder="Then likely..."
+                  showLabel={false}
+                />
+                <button
+                  onClick={() => handleRemoveConsequence(action)}
+                  className="px-2 py-1 text-red-400 hover:text-red-300 hover:bg-red-900/30 rounded"
+                  title="Remove rule"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          ))}
+          {Object.keys(data.consequencesTable).length === 0 && (
+            <div className="text-zinc-400 text-sm italic">
+              Add consequences for common PC actions in this region.
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="bg-zinc-800/50 border border-zinc-600/50 rounded-lg p-4">
+        <h4 className="text-sm font-semibold text-zinc-200 mb-2">Guidelines:</h4>
+        {React.createElement('ul', {
+          className: "text-xs text-zinc-400 space-y-1"
+        }, [
+          React.createElement('li', { key: 1 }, "• Focus on how laws actually work in practice, not just theory"),
+          React.createElement('li', { key: 2 }, "• Include corruption, delays, and regional variations"),
+          React.createElement('li', { key: 3 }, "• Consequences should reflect local culture and enforcement"),
+          React.createElement('li', { key: 4 }, "• Examples help players understand the justice system's nature")
+        ])}
       </div>
     </div>
   );
 }
 
 export function CurrencyForm({ data, onUpdate }: { data: CurrencyData; onUpdate: (updates: Partial<CurrencyData>) => void }) {
+  const handleBarterQuirksChange = (value: string) => {
+    onUpdate({ barterQuirks: value });
+  };
+
+  const handleSlangChange = (denomination: string, slang: string) => {
+    if (slang.trim() === '') {
+      const newSlang = { ...data.currencySlang };
+      delete newSlang[denomination];
+      onUpdate({ currencySlang: newSlang });
+    } else {
+      onUpdate({
+        currencySlang: { ...data.currencySlang, [denomination]: slang }
+      });
+    }
+  };
+
+  const handleAddSlang = () => {
+    const denomination = prompt("Enter denomination name:");
+    if (denomination && denomination.trim()) {
+      onUpdate({
+        currencySlang: { ...data.currencySlang, [denomination.trim()]: '' }
+      });
+    }
+  };
+
+  const handleRemoveSlang = (denomination: string) => {
+    if (confirm(`Remove slang for "${denomination}"?`)) {
+      const newSlang = { ...data.currencySlang };
+      delete newSlang[denomination];
+      onUpdate({ currencySlang: newSlang });
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-white">Currency (Read-Only)</h2>
-      <div className="p-4 border border-amber-500/30 bg-amber-950/30 rounded-lg">
-        <p className="text-amber-200">This form is under construction.</p>
-        <p className="text-sm text-amber-300 mt-2">
-          Shows resolved currency from Era/Region settings
-        </p>
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-white">Currency (Region-Inherited)</h2>
+        <div className="text-sm text-violet-400">Advanced Section</div>
+      </div>
+
+      <div className="text-sm text-zinc-300 bg-blue-950/30 border border-blue-500/30 rounded-lg p-4">
+        <strong>Purpose:</strong> Display inherited currency from Era/Region settings plus local variations and slang.
+      </div>
+
+      {/* Resolved Denominations (Read-Only) */}
+      <div className="bg-zinc-800/50 border border-zinc-600/50 rounded-lg p-4">
+        <h3 className="text-lg font-semibold text-white mb-4">
+          Standard Denominations
+          <span className="text-sm font-normal text-zinc-400 ml-2">(From Era/Region)</span>
+        </h3>
+        
+        {Object.keys(data.resolvedDenominations).length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {Object.entries(data.resolvedDenominations).map(([name, value]) => (
+              <div key={name} className="bg-zinc-700/50 rounded p-3">
+                <div className="font-medium text-zinc-200">{name}</div>
+                <div className="text-sm text-zinc-400">Value: {value}</div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-zinc-400 italic">
+            No standard denominations defined at Era/Region level. 
+            Configure currency in the Era or World details first.
+          </div>
+        )}
+      </div>
+
+      {/* Local Barter Quirks */}
+      <div>
+        <FormField
+          label="Local Barter & Exchange Quirks"
+          value={data.barterQuirks}
+          onChange={handleBarterQuirksChange}
+          placeholder="Regional preferences, trade goods, seasonal variations..."
+          textarea={true}
+          maxLength={300}
+        />
+        <div className="text-xs text-zinc-400 mt-1">
+          How currency works differently in this specific region
+        </div>
+      </div>
+
+      {/* Currency Slang */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-white">Local Currency Slang</h3>
+          <button
+            onClick={handleAddSlang}
+            className="px-3 py-1 text-sm bg-amber-600 hover:bg-amber-700 text-white rounded-lg"
+          >
+            Add Slang Term
+          </button>
+        </div>
+        <div className="text-sm text-zinc-400 mb-4">
+          Regional nicknames and colloquialisms for money
+        </div>
+        
+        <div className="space-y-3">
+          {Object.entries(data.currencySlang).map(([denomination, slang]) => (
+            <div key={denomination} className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+              <div className="font-medium text-zinc-200 p-2 bg-zinc-700/50 rounded">
+                {denomination}
+              </div>
+              <div className="flex gap-3 items-start">
+                <FormField
+                  label=""
+                  value={slang}
+                  onChange={(value: string) => handleSlangChange(denomination, value)}
+                  placeholder='Local slang (e.g. "coppers", "dragons")'
+                  showLabel={false}
+                />
+                <button
+                  onClick={() => handleRemoveSlang(denomination)}
+                  className="px-2 py-1 text-red-400 hover:text-red-300 hover:bg-red-900/30 rounded"
+                  title="Remove slang"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          ))}
+          {Object.keys(data.currencySlang).length === 0 && (
+            <div className="text-zinc-400 text-sm italic">
+              Add local slang terms for different denominations.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Usage Examples */}
+      <div className="bg-zinc-800/50 border border-zinc-600/50 rounded-lg p-4">
+        <h4 className="text-sm font-semibold text-zinc-200 mb-2">Currency in Practice:</h4>
+        {React.createElement('ul', {
+          className: "text-xs text-zinc-400 space-y-1"
+        }, [
+          React.createElement('li', { key: 1 }, "• Standard denominations come from Era/Region settings"),
+          React.createElement('li', { key: 2 }, "• Use Barter Quirks for local trade preferences"),
+          React.createElement('li', { key: 3 }, "• Add slang terms that NPCs would actually use"),
+          React.createElement('li', { key: 4 }, "• Consider seasonal variations (harvest payments, etc.)")
+        ])}
       </div>
     </div>
   );

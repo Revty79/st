@@ -298,158 +298,6 @@ export function TimelineV4({
   const height = viewMode === 'compact' ? 200 : viewMode === 'detailed' ? 500 : 350;
   const mainTimelineY = height * 0.4; // Position main timeline 40% down
 
-  // Calculate label positions with collision avoidance
-  const labelPositions = useMemo(() => {
-    const positions = new Map<string, {
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-      angle: number;
-      textAnchor: "start" | "end" | "middle";
-      lineEndX: number;
-      lineEndY: number;
-    }>();
-
-    // Sort events by x position to process left to right
-    const sortedEvents = [...chronologicalEvents]
-      .map(event => ({ event, x: yearToX(event.year) }))
-      .filter(({ x }) => x >= -20 && x <= width + 20) // Only visible events
-      .sort((a, b) => a.x - b.x);
-
-    // Track occupied areas
-    const occupiedAreas: Array<{
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-    }> = [];
-
-    const labelHeight = 16;
-    const labelPadding = 8;
-    const minDistance = 60; // Minimum distance between labels
-
-    sortedEvents.forEach(({ event, x }, index) => {
-      // Estimate label width based on text length
-      const labelWidth = Math.max(60, Math.min(120, event.name.length * 8));
-      
-      // Determine initial position preference
-      let isTop = event.category === 'era' || (event.category === 'marker' && index % 2 === 0);
-      
-      // Calculate base position
-      const baseSpacing = viewMode === 'compact' ? 25 : 40;
-      let yOffset = 0;
-      
-      if (event.category === 'era') {
-        yOffset = event.type === 'era-start' ? -baseSpacing : -baseSpacing * 1.5;
-      } else if (event.category === 'setting') {
-        yOffset = event.type === 'setting-start' ? baseSpacing : baseSpacing * 1.5;
-      } else {
-        yOffset = isTop ? -baseSpacing * 0.7 : baseSpacing * 0.7;
-      }
-
-      let labelY = mainTimelineY + yOffset + (isTop ? -25 : 30);
-      let angle = -45;
-      let textAnchor: "start" | "end" | "middle" = isTop ? "start" : "end";
-      let labelX = x + (isTop ? 20 : -5);
-
-      // Check for collisions and adjust position
-      let attempts = 0;
-      let collision = true;
-      
-      while (collision && attempts < 20) {
-        collision = false;
-        
-        // Calculate rotated bounding box approximation
-        const radians = (angle * Math.PI) / 180;
-        const cos = Math.abs(Math.cos(radians));
-        const sin = Math.abs(Math.sin(radians));
-        const rotatedWidth = labelWidth * cos + labelHeight * sin;
-        const rotatedHeight = labelWidth * sin + labelHeight * cos;
-        
-        const boundingBox = {
-          x: labelX - (textAnchor === "end" ? rotatedWidth : 0),
-          y: labelY - rotatedHeight / 2,
-          width: rotatedWidth,
-          height: rotatedHeight
-        };
-        
-        // Check collision with existing labels
-        for (const area of occupiedAreas) {
-          if (boundingBox.x < area.x + area.width + labelPadding &&
-              boundingBox.x + boundingBox.width + labelPadding > area.x &&
-              boundingBox.y < area.y + area.height + labelPadding &&
-              boundingBox.y + boundingBox.height + labelPadding > area.y) {
-            collision = true;
-            break;
-          }
-        }
-        
-        // Also check minimum distance from previous labels in same direction
-        const prevEvent = index > 0 ? sortedEvents[index - 1] : null;
-        if (prevEvent && Math.abs(x - prevEvent.x) < minDistance) {
-          const prevPos = positions.get(prevEvent.event.id);
-          if (prevPos && Math.abs(labelY - prevPos.y) < labelHeight + labelPadding) {
-            collision = true;
-          }
-        }
-        
-        if (collision) {
-          attempts++;
-          
-          // Adjust position
-          if (attempts % 4 === 0) {
-            // Switch sides
-            isTop = !isTop;
-            yOffset = isTop ? -baseSpacing * 0.7 : baseSpacing * 0.7;
-            labelY = mainTimelineY + yOffset + (isTop ? -25 : 30);
-            textAnchor = isTop ? "start" : "end";
-            labelX = x + (isTop ? 20 : -5);
-          } else if (attempts % 2 === 0) {
-            // Move further out
-            const extraOffset = Math.floor(attempts / 2) * 15;
-            labelY = mainTimelineY + yOffset + (isTop ? -25 - extraOffset : 30 + extraOffset);
-          } else {
-            // Shift horizontally slightly
-            labelX += (attempts % 4 < 2 ? 10 : -10);
-          }
-        }
-      }
-
-      // Calculate line end position
-      const lineEndX = x + (isTop ? 18 : -8);
-      const lineEndY = mainTimelineY + yOffset + (isTop ? -18 : 22);
-
-      // Store final position
-      positions.set(event.id, {
-        x: labelX,
-        y: labelY,
-        width: labelWidth,
-        height: labelHeight,
-        angle,
-        textAnchor,
-        lineEndX,
-        lineEndY
-      });
-
-      // Add to occupied areas
-      const radians = (angle * Math.PI) / 180;
-      const cos = Math.abs(Math.cos(radians));
-      const sin = Math.abs(Math.sin(radians));
-      const rotatedWidth = labelWidth * cos + labelHeight * sin;
-      const rotatedHeight = labelWidth * sin + labelHeight * cos;
-      
-      occupiedAreas.push({
-        x: labelX - (textAnchor === "end" ? rotatedWidth : 0),
-        y: labelY - rotatedHeight / 2,
-        width: rotatedWidth,
-        height: rotatedHeight
-      });
-    });
-
-    return positions;
-  }, [chronologicalEvents, yearToX, width, mainTimelineY, viewMode, timelineBounds]);
-
   // Handle mouse dragging for panning
   const handleMouseDown = (e: React.MouseEvent) => {
     if (zoomLevel <= 1) return; // Only allow dragging when zoomed
@@ -669,11 +517,7 @@ export function TimelineV4({
             const isHovered = hoveredEvent === event.id;
             const isSelected = selectedEvent === event.id;
             
-            // Get calculated position from collision avoidance system
-            const labelPos = labelPositions.get(event.id);
-            if (!labelPos) return null;
-            
-            // Determine y position based on event type
+            // Determine y position based on event type and index to avoid overlaps
             let yOffset = 0;
             const baseSpacing = viewMode === 'compact' ? 25 : 40;
             
@@ -682,8 +526,8 @@ export function TimelineV4({
             } else if (event.category === 'setting') {
               yOffset = event.type === 'setting-start' ? baseSpacing : baseSpacing * 1.5;
             } else {
-              // Markers alternate above and below based on optimized positioning
-              yOffset = labelPos.y > mainTimelineY ? baseSpacing * 0.7 : -baseSpacing * 0.7;
+              // Markers alternate above and below
+              yOffset = (index % 2 === 0) ? -baseSpacing * 0.7 : baseSpacing * 0.7;
             }
             
             const eventY = mainTimelineY + yOffset;
@@ -724,17 +568,17 @@ export function TimelineV4({
                   onMouseLeave={() => setHoveredEvent(null)}
                 />
                 
-                {/* Event label - using optimized position */}
+                {/* Event label - angled to prevent overlap */}
                 {viewMode !== 'compact' && (
                   <text
-                    x={labelPos.x}
-                    y={labelPos.y}
-                    textAnchor={labelPos.textAnchor}
+                    x={x + (yOffset < 0 ? 20 : -5)}
+                    y={eventY + (yOffset < 0 ? -20 : 25)}
+                    textAnchor={yOffset < 0 ? "start" : "end"}
                     fontSize={11}
                     fill={event.color}
                     fontWeight="medium"
                     className="cursor-pointer select-none"
-                    transform={`rotate(${labelPos.angle}, ${labelPos.x}, ${labelPos.y})`}
+                    transform={`rotate(${yOffset < 0 ? -45 : -45}, ${x + (yOffset < 0 ? 20 : -5)}, ${eventY + (yOffset < 0 ? -20 : 25)})`}
                     onClick={() => {
                       setSelectedEvent(event.id);
                       setFocusYear(event.year);
@@ -749,13 +593,13 @@ export function TimelineV4({
                   </text>
                 )}
                 
-                {/* Optimized connector line for label */}
+                {/* Angled connector line for label */}
                 {viewMode !== 'compact' && (
                   <line
-                    x1={x + (radius * (labelPos.y < mainTimelineY ? 0.7 : -0.7))}
-                    y1={eventY + (labelPos.y < mainTimelineY ? -radius * 0.7 : radius * 0.7)}
-                    x2={labelPos.lineEndX}
-                    y2={labelPos.lineEndY}
+                    x1={x + (radius * (yOffset < 0 ? 0.7 : -0.7))}
+                    y1={eventY + (yOffset < 0 ? -radius * 0.7 : radius * 0.7)}
+                    x2={x + (yOffset < 0 ? 18 : -8)}
+                    y2={eventY + (yOffset < 0 ? -18 : 22)}
                     stroke={event.color}
                     strokeWidth={1}
                     opacity={0.5}
@@ -766,7 +610,7 @@ export function TimelineV4({
                 {(viewMode === 'detailed' || isHovered) && (
                   <text
                     x={x}
-                    y={eventY + (labelPos.y < mainTimelineY ? -25 : 35)}
+                    y={eventY + (yOffset < 0 ? -25 : 35)}
                     textAnchor="middle"
                     fontSize={10}
                     fill="#9ca3af"

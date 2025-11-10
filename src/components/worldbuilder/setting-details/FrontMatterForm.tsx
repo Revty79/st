@@ -4,10 +4,45 @@ import { useState } from "react";
 import FormField from "@/components/shared/FormField";
 import { FrontMatterData } from "@/types/settings";
 
+// Section header component with save button
+const SectionHeader = ({ title, onSave, isSaving }: {
+  title: string;
+  onSave?: () => void;
+  isSaving?: boolean;
+}) => (
+  <div className="flex items-center justify-between mb-6 pb-3 border-b border-white/20">
+    <h3 className="text-xl font-semibold text-white">{title}</h3>
+    {onSave && (
+      <button
+        onClick={onSave}
+        disabled={isSaving}
+        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 border ${
+          isSaving
+            ? 'bg-amber-600/20 border-amber-400/30 text-amber-300 cursor-not-allowed'
+            : 'bg-amber-600/10 hover:bg-amber-600/20 border-amber-400/20 hover:border-amber-400/40 text-amber-200 hover:text-amber-100'
+        } flex items-center gap-2`}
+      >
+        {isSaving ? (
+          <>
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-amber-400 border-t-transparent"></div>
+            Saving...
+          </>
+        ) : (
+          <>
+            💾 Save Changes
+          </>
+        )}
+      </button>
+    )}
+  </div>
+);
+
 interface FrontMatterFormProps {
   data: FrontMatterData;
   onUpdate: (updates: Partial<FrontMatterData>) => void;
   eraData?: any; // Era context data for inheritance
+  onManualSave?: () => void;
+  isManualSaving?: boolean;
 }
 
 const RegionScopeOptions = [
@@ -29,7 +64,7 @@ const PresetRealms = [
   "Earth", "Air", "Positive", "Negative", "Celestial", "Infernal", "Limbo"
 ];
 
-export default function FrontMatterForm({ data, onUpdate, eraData }: FrontMatterFormProps) {
+export default function FrontMatterForm({ data, onUpdate, eraData, onManualSave, isManualSaving }: FrontMatterFormProps) {
   const [customTag, setCustomTag] = useState("");
   const [customRealm, setCustomRealm] = useState("");
 
@@ -74,10 +109,13 @@ export default function FrontMatterForm({ data, onUpdate, eraData }: FrontMatter
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-white">Front Matter</h2>
-        <div className="text-sm text-amber-400">MVS Required Section</div>
-      </div>
+      <SectionHeader 
+        title="Front Matter" 
+        onSave={onManualSave} 
+        isSaving={isManualSaving} 
+      />
+
+      <div className="text-sm text-amber-400 text-center mb-4">MVS Required Section</div>
 
       <div className="text-sm text-zinc-300 bg-blue-950/30 border border-blue-500/30 rounded-lg p-4">
         <strong>Fill Goal:</strong> Create the public name, pitch, and scope that makes this setting discoverable and sets player expectations.

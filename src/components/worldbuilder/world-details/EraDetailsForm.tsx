@@ -1,6 +1,39 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
+
+// Section header component with save button
+const SectionHeader = ({ title, onSave, isSaving }: {
+  title: string;
+  onSave?: () => void;
+  isSaving?: boolean;
+}) => (
+  <div className="flex items-center justify-between mb-6 pb-3 border-b border-white/20">
+    <h3 className="text-xl font-semibold text-white">{title}</h3>
+    {onSave && (
+      <button
+        onClick={onSave}
+        disabled={isSaving}
+        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 border ${
+          isSaving
+            ? 'bg-amber-600/20 border-amber-400/30 text-amber-300 cursor-not-allowed'
+            : 'bg-amber-600/10 hover:bg-amber-600/20 border-amber-400/20 hover:border-amber-400/40 text-amber-200 hover:text-amber-100'
+        } flex items-center gap-2`}
+      >
+        {isSaving ? (
+          <>
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-amber-400 border-t-transparent"></div>
+            Saving...
+          </>
+        ) : (
+          <>
+            💾 Save Changes
+          </>
+        )}
+      </button>
+    )}
+  </div>
+);
 
 // ============================================================================
 // INTERFACES
@@ -162,6 +195,9 @@ interface EraDetailsFormProps {
   data: EraDetailsData;
   onUpdate: (data: Partial<EraDetailsData>) => void;
   worldRealms: Array<{ id: string; name: string }>; // Available realms from World
+  currentSection: string;
+  onManualSave?: () => void;
+  isManualSaving?: boolean;
 }
 
 // ============================================================================
@@ -180,17 +216,25 @@ const Input = ({ value, onChange, onBlur, placeholder, maxLength, className = ""
   />
 );
 
-const Textarea = ({ value, onChange, onBlur, placeholder, rows = 3, maxLength, className = "" }: any) => (
-  <textarea
-    value={value}
-    onChange={onChange}
-    onBlur={onBlur}
-    placeholder={placeholder}
-    maxLength={maxLength}
-    rows={rows}
-    className={`w-full rounded-lg bg-white/10 text-white placeholder:text-white/50 border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400 ${className}`}
-  />
-);
+const Textarea = ({ value, onChange, onBlur, placeholder, rows = 3, maxLength, className = "" }: {
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  onBlur?: (e: React.FocusEvent<HTMLTextAreaElement>) => void;
+  placeholder?: string;
+  rows?: number;
+  maxLength?: number;
+  className?: string;
+}) => {
+  return React.createElement('textarea', {
+    value,
+    onChange,
+    onBlur,
+    placeholder,
+    maxLength,
+    rows,
+    className: `w-full rounded-lg bg-white/10 text-white placeholder:text-white/50 border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400 ${className}`
+  });
+};
 
 const Select = ({ value, onChange, options, className = "" }: any) => (
   <select
@@ -445,7 +489,7 @@ function GovernmentsSection({
                                 <input
                                   type="text"
                                   value={region.name}
-                                  onChange={(e) => updateRegion(govIdx, regionIdx, 'name', e.target.value)}
+                                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateRegion(govIdx, regionIdx, 'name', e.target.value)}
                                   placeholder="Region name"
                                   className="w-full rounded bg-white/10 text-white text-sm px-2 py-1 border border-white/20"
                                 />
@@ -454,7 +498,7 @@ function GovernmentsSection({
                                 <label className="block text-xs text-white/60 mb-1">Kind</label>
                                 <select
                                   value={region.kind}
-                                  onChange={(e) => updateRegion(govIdx, regionIdx, 'kind', e.target.value)}
+                                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateRegion(govIdx, regionIdx, 'kind', e.target.value)}
                                   className="w-full rounded bg-white/10 text-white text-sm px-2 py-1 border border-white/20"
                                 >
                                   <option value="Region" className="bg-zinc-800">Region</option>
@@ -467,7 +511,7 @@ function GovernmentsSection({
                                 <input
                                   type="text"
                                   value={region.parent || ""}
-                                  onChange={(e) => updateRegion(govIdx, regionIdx, 'parent', e.target.value || undefined)}
+                                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateRegion(govIdx, regionIdx, 'parent', e.target.value || undefined)}
                                   placeholder="Parent region"
                                   className="w-full rounded bg-white/10 text-white text-sm px-2 py-1 border border-white/20"
                                 />
@@ -492,7 +536,7 @@ function GovernmentsSection({
                                     <input
                                       type="text"
                                       value={denom.name}
-                                      onChange={(e) => updateDenomination(govIdx, regionIdx, denomIdx, 'name', e.target.value)}
+                                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateDenomination(govIdx, regionIdx, denomIdx, 'name', e.target.value)}
                                       placeholder="Name (e.g., Dollar)"
                                       className="flex-1 rounded bg-white/10 text-white text-xs px-2 py-1 border border-white/20"
                                     />
@@ -500,7 +544,7 @@ function GovernmentsSection({
                                       type="number"
                                       step="0.01"
                                       value={denom.valueInWorldAnchor}
-                                      onChange={(e) => updateDenomination(govIdx, regionIdx, denomIdx, 'valueInWorldAnchor', parseFloat(e.target.value) || 1.0)}
+                                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateDenomination(govIdx, regionIdx, denomIdx, 'valueInWorldAnchor', parseFloat(e.target.value) || 1.0)}
                                       placeholder="1.0"
                                       className="w-20 rounded bg-white/10 text-white text-xs px-2 py-1 border border-white/20"
                                     />
@@ -518,7 +562,7 @@ function GovernmentsSection({
                                 <input
                                   type="text"
                                   value={region.localCurrency.barterExchangeQuirks || ""}
-                                  onChange={(e) => updateRegion(govIdx, regionIdx, 'localCurrency', {
+                                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateRegion(govIdx, regionIdx, 'localCurrency', {
                                     ...region.localCurrency,
                                     barterExchangeQuirks: e.target.value
                                   })}
@@ -528,7 +572,7 @@ function GovernmentsSection({
                                 <input
                                   type="text"
                                   value={region.localCurrency.currencySlang || ""}
-                                  onChange={(e) => updateRegion(govIdx, regionIdx, 'localCurrency', {
+                                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateRegion(govIdx, regionIdx, 'localCurrency', {
                                     ...region.localCurrency,
                                     currencySlang: e.target.value
                                   })}
@@ -921,7 +965,7 @@ function SettingStubsSection({
                           <input
                             type="checkbox"
                             checked={stub.activeRealms.includes(realmId)}
-                            onChange={(e) => {
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                               const updated = e.target.checked
                                 ? [...stub.activeRealms, realmId]
                                 : stub.activeRealms.filter(id => id !== realmId);
@@ -948,8 +992,14 @@ function SettingStubsSection({
 // MAIN COMPONENT
 // ============================================================================
 
-export default function EraDetailsForm({ data, onUpdate, worldRealms }: EraDetailsFormProps) {
-  const [activeSection, setActiveSection] = useState<number>(1);
+export default function EraDetailsForm({ 
+  data, 
+  onUpdate, 
+  worldRealms, 
+  currentSection,
+  onManualSave,
+  isManualSaving
+}: EraDetailsFormProps) {
 
   // Section 1: Basic Info
   const updateBasicInfo = (field: keyof EraBasicInfo, value: any) => {
@@ -967,43 +1017,14 @@ export default function EraDetailsForm({ data, onUpdate, worldRealms }: EraDetai
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="border-b border-white/20 pb-4">
-        <h2 className="text-2xl font-bold text-white">Era Details</h2>
-        <p className="text-sm text-white/60 mt-2">
-          Define this era's timeframe, active realms, governments, catalogs, and settings
-        </p>
-      </div>
-
-      {/* Section Navigation */}
-      <div className="flex gap-2 flex-wrap">
-        {[
-          { id: 1, label: 'Basic Info' },
-          { id: 2, label: 'Backdrop' },
-          { id: 3, label: 'Governments' },
-          { id: 4, label: 'Trade & Economics' },
-          { id: 5, label: 'Era Catalogs' },
-          { id: 6, label: 'Catalyst Events' },
-          { id: 7, label: 'Setting Stubs' }
-        ].map(section => (
-          <button
-            key={section.id}
-            onClick={() => setActiveSection(section.id)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              activeSection === section.id
-                ? 'bg-amber-500 text-black'
-                : 'bg-white/10 text-white hover:bg-white/20'
-            }`}
-          >
-            {section.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Section 1: Basic Info */}
-      {activeSection === 1 && (
-        <div className="space-y-4 bg-white/5 border border-white/20 rounded-lg p-6">
-          <h3 className="text-xl font-semibold text-white mb-4">1) Basic Info (Dates + Transitions)</h3>
+      {/* Basic Info Section */}
+      {currentSection === "basic" && (
+        <div className="space-y-4">
+          <SectionHeader 
+            title="Basic Info (Dates + Transitions)" 
+            onSave={onManualSave} 
+            isSaving={isManualSaving} 
+          />
           
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -1129,9 +1150,13 @@ export default function EraDetailsForm({ data, onUpdate, worldRealms }: EraDetai
       )}
 
       {/* Section 2: Backdrop Defaults */}
-      {activeSection === 2 && (
-        <div className="space-y-4 bg-white/5 border border-white/20 rounded-lg p-6">
-          <h3 className="text-xl font-semibold text-white mb-4">2) Backdrop Defaults</h3>
+      {currentSection === "backdrop" && (
+        <div className="space-y-4">
+          <SectionHeader 
+            title="Backdrop Defaults" 
+            onSave={onManualSave} 
+            isSaving={isManualSaving} 
+          />
           <p className="text-sm text-white/60 mb-4">Must sit within World bounds</p>
 
           <div>
@@ -1142,7 +1167,7 @@ export default function EraDetailsForm({ data, onUpdate, worldRealms }: EraDetai
                   <input
                     type="checkbox"
                     checked={data.backdropDefaults.activeRealms.includes(realm.id)}
-                    onChange={(e) => {
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                       const updated = e.target.checked
                         ? [...data.backdropDefaults.activeRealms, realm.id]
                         : data.backdropDefaults.activeRealms.filter(id => id !== realm.id);
@@ -1301,17 +1326,28 @@ export default function EraDetailsForm({ data, onUpdate, worldRealms }: EraDetai
       )}
 
       {/* Section 3: Governments */}
-      {activeSection === 3 && (
-        <GovernmentsSection
-          governments={data.governments}
-          onUpdate={(govs) => onUpdate({ governments: govs })}
-        />
+      {currentSection === "governments" && (
+        <div className="space-y-4">
+          <SectionHeader 
+            title="Governments" 
+            onSave={onManualSave} 
+            isSaving={isManualSaving} 
+          />
+          <GovernmentsSection
+            governments={data.governments}
+            onUpdate={(govs: any) => onUpdate({ governments: govs })}
+          />
+        </div>
       )}
 
       {/* Section 4: Trade & Economics */}
-      {activeSection === 4 && (
-        <div className="space-y-4 bg-white/5 border border-white/20 rounded-lg p-6">
-          <h3 className="text-xl font-semibold text-white mb-4">4) Trade & Economics (era level)</h3>
+      {currentSection === "trade" && (
+        <div className="space-y-4">
+          <SectionHeader 
+            title="Trade & Economics (era level)" 
+            onSave={onManualSave} 
+            isSaving={isManualSaving} 
+          />
 
           <div>
             <label className="block text-sm font-medium text-white mb-2">Trade Routes (active / disrupted / new)</label>
@@ -1364,29 +1400,50 @@ export default function EraDetailsForm({ data, onUpdate, worldRealms }: EraDetai
       )}
 
       {/* Section 5: Era Catalogs */}
-      {activeSection === 5 && (
-        <EraCatalogsSection
-          catalogs={data.catalogs}
-          onUpdate={(cats) => onUpdate({ catalogs: cats })}
-        />
+      {currentSection === "catalogs" && (
+        <div className="space-y-4">
+          <SectionHeader 
+            title="Era Catalogs" 
+            onSave={onManualSave} 
+            isSaving={isManualSaving} 
+          />
+          <EraCatalogsSection
+            catalogs={data.catalogs}
+            onUpdate={(cats: any) => onUpdate({ catalogs: cats })}
+          />
+        </div>
       )}
 
       {/* Section 6: Catalyst Events */}
-      {activeSection === 6 && (
-        <CatalystEventsSection
-          events={data.catalystEvents}
-          onUpdate={(events) => onUpdate({ catalystEvents: events })}
-        />
+      {currentSection === "events" && (
+        <div className="space-y-4">
+          <SectionHeader 
+            title="Catalyst Events" 
+            onSave={onManualSave} 
+            isSaving={isManualSaving} 
+          />
+          <CatalystEventsSection
+            events={data.catalystEvents}
+            onUpdate={(events: any) => onUpdate({ catalystEvents: events })}
+          />
+        </div>
       )}
 
       {/* Section 7: Setting Stubs */}
-      {activeSection === 7 && (
-        <SettingStubsSection
-          stubs={data.settingStubs}
-          eraRealms={data.backdropDefaults.activeRealms}
-          governments={data.governments}
-          onUpdate={(stubs) => onUpdate({ settingStubs: stubs })}
-        />
+      {currentSection === "settings" && (
+        <div className="space-y-4">
+          <SectionHeader 
+            title="Setting Stubs" 
+            onSave={onManualSave} 
+            isSaving={isManualSaving} 
+          />
+          <SettingStubsSection
+            stubs={data.settingStubs}
+            eraRealms={data.backdropDefaults.activeRealms}
+            governments={data.governments}
+            onUpdate={(stubs: any) => onUpdate({ settingStubs: stubs })}
+          />
+        </div>
       )}
     </div>
   );

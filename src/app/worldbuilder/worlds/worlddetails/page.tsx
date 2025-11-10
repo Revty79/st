@@ -632,6 +632,32 @@ function WorldDetailsContent() {
     }
   };
 
+  // Manual save function
+  const manualSave = async (section: string) => {
+    const sectionData = getSectionData(section);
+    if (sectionData) {
+      await saveChanges(sectionData, section);
+    }
+  };
+
+  // Helper function to get current section data
+  const getSectionData = (section: string) => {
+    switch (section) {
+      case "basic": return data.basic;
+      case "time": return data.time;
+      case "astral": return data.astral;
+      case "planet": return data.planet;
+      case "magic": return data.magic;
+      case "technology": return data.technology;
+      case "tone": return data.tone;
+      case "cosmology": return data.cosmology;
+      case "catalogs": return data.catalogs;
+      case "currency": return data.currency;
+      case "timeline": return data.timeline;
+      default: return null;
+    }
+  };
+
   // Update handlers for each section
   const updateBasicInfo = (updates: Partial<BasicInfoData>) => {
     const newData = { ...data.basic, ...updates };
@@ -723,7 +749,7 @@ function WorldDetailsContent() {
                 World Details: {worldName}
               </h1>
               <p className="text-zinc-300 text-sm mt-2">
-                All changes auto-save when you navigate away from fields
+                Auto-saves when you leave fields • Manual save buttons available in each section
               </p>
             </div>
           </div>
@@ -740,37 +766,268 @@ function WorldDetailsContent() {
       {/* Content */}
       <div className="rounded-2xl border border-white/15 bg-white/10 backdrop-blur-sm shadow-sm p-6">
         {currentSection === "basic" && (
-          <BasicInfoForm data={data.basic} onUpdate={updateBasicInfo} />
+          <div className="space-y-6">
+            <div className="flex items-center justify-between border-b border-white/20 pb-4">
+              <h2 className="text-xl font-semibold text-white">Basic Info</h2>
+              <button
+                onClick={() => manualSave("basic")}
+                disabled={isSaving}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-500/50 text-black font-medium rounded-lg transition-colors flex items-center gap-2"
+              >
+                {isSaving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-black border-t-transparent"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    💾 Save Changes
+                  </>
+                )}
+              </button>
+            </div>
+            <BasicInfoForm data={data.basic} onUpdate={updateBasicInfo} />
+          </div>
         )}
         {currentSection === "time" && (
-          <TimeCalendarForm data={data.time} onUpdate={updateTimeCalendar} />
+          <div className="space-y-6">
+            <div className="flex items-center justify-between border-b border-white/20 pb-4">
+              <h2 className="text-xl font-semibold text-white">Time & Calendar</h2>
+              <button
+                onClick={() => manualSave("time")}
+                disabled={isSaving}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-500/50 text-black font-medium rounded-lg transition-colors flex items-center gap-2"
+              >
+                {isSaving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-black border-t-transparent"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    💾 Save Changes
+                  </>
+                )}
+              </button>
+            </div>
+            <TimeCalendarForm data={data.time} onUpdate={updateTimeCalendar} />
+          </div>
         )}
         {currentSection === "astral" && (
-          <AstralBodiesForm data={data.astral} onUpdate={updateAstralBodies} />
+          <div className="space-y-6">
+            <div className="flex items-center justify-between border-b border-white/20 pb-4">
+              <h2 className="text-xl font-semibold text-white">Astral Bodies</h2>
+              <button
+                onClick={() => manualSave("astral")}
+                disabled={isSaving}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-500/50 text-black font-medium rounded-lg transition-colors flex items-center gap-2"
+              >
+                {isSaving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-black border-t-transparent"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    💾 Save Changes
+                  </>
+                )}
+              </button>
+            </div>
+            <AstralBodiesForm data={data.astral} onUpdate={updateAstralBodies} />
+          </div>
         )}
         {currentSection === "planet" && (
-          <PlanetProfileForm data={data.planet} onUpdate={updatePlanetProfile} />
+          <div className="space-y-6">
+            <div className="flex items-center justify-between border-b border-white/20 pb-4">
+              <h2 className="text-xl font-semibold text-white">Planet Profile</h2>
+              <button
+                onClick={() => manualSave("planet")}
+                disabled={isSaving}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-500/50 text-black font-medium rounded-lg transition-colors flex items-center gap-2"
+              >
+                {isSaving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-black border-t-transparent"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    💾 Save Changes
+                  </>
+                )}
+              </button>
+            </div>
+            <PlanetProfileForm data={data.planet} onUpdate={updatePlanetProfile} />
+          </div>
         )}
         {currentSection === "magic" && (
-          <MagicModelForm data={data.magic} onUpdate={updateMagicModel} />
+          <div className="space-y-6">
+            <div className="flex items-center justify-between border-b border-white/20 pb-4">
+              <h2 className="text-xl font-semibold text-white">Magic Model</h2>
+              <button
+                onClick={() => manualSave("magic")}
+                disabled={isSaving}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-500/50 text-black font-medium rounded-lg transition-colors flex items-center gap-2"
+              >
+                {isSaving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-black border-t-transparent"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    💾 Save Changes
+                  </>
+                )}
+              </button>
+            </div>
+            <MagicModelForm data={data.magic} onUpdate={updateMagicModel} />
+          </div>
         )}
         {currentSection === "technology" && (
-          <TechnologyWindowForm data={data.technology} onUpdate={updateTechnologyWindow} />
+          <div className="space-y-6">
+            <div className="flex items-center justify-between border-b border-white/20 pb-4">
+              <h2 className="text-xl font-semibold text-white">Technology Window</h2>
+              <button
+                onClick={() => manualSave("technology")}
+                disabled={isSaving}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-500/50 text-black font-medium rounded-lg transition-colors flex items-center gap-2"
+              >
+                {isSaving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-black border-t-transparent"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    💾 Save Changes
+                  </>
+                )}
+              </button>
+            </div>
+            <TechnologyWindowForm data={data.technology} onUpdate={updateTechnologyWindow} />
+          </div>
         )}
         {currentSection === "tone" && (
-          <ToneCanonForm data={data.tone} onUpdate={updateToneCanon} />
+          <div className="space-y-6">
+            <div className="flex items-center justify-between border-b border-white/20 pb-4">
+              <h2 className="text-xl font-semibold text-white">Tone & Canon</h2>
+              <button
+                onClick={() => manualSave("tone")}
+                disabled={isSaving}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-500/50 text-black font-medium rounded-lg transition-colors flex items-center gap-2"
+              >
+                {isSaving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-black border-t-transparent"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    💾 Save Changes
+                  </>
+                )}
+              </button>
+            </div>
+            <ToneCanonForm data={data.tone} onUpdate={updateToneCanon} />
+          </div>
         )}
         {currentSection === "cosmology" && (
-          <CosmologyRealmsForm data={data.cosmology} onUpdate={updateCosmologyRealms} />
+          <div className="space-y-6">
+            <div className="flex items-center justify-between border-b border-white/20 pb-4">
+              <h2 className="text-xl font-semibold text-white">Cosmology & Realms</h2>
+              <button
+                onClick={() => manualSave("cosmology")}
+                disabled={isSaving}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-500/50 text-black font-medium rounded-lg transition-colors flex items-center gap-2"
+              >
+                {isSaving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-black border-t-transparent"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    💾 Save Changes
+                  </>
+                )}
+              </button>
+            </div>
+            <CosmologyRealmsForm data={data.cosmology} onUpdate={updateCosmologyRealms} />
+          </div>
         )}
         {currentSection === "catalogs" && (
-          <MasterCatalogsForm data={data.catalogs} onUpdate={updateMasterCatalogs} />
+          <div className="space-y-6">
+            <div className="flex items-center justify-between border-b border-white/20 pb-4">
+              <h2 className="text-xl font-semibold text-white">Master Catalogs</h2>
+              <button
+                onClick={() => manualSave("catalogs")}
+                disabled={isSaving}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-500/50 text-black font-medium rounded-lg transition-colors flex items-center gap-2"
+              >
+                {isSaving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-black border-t-transparent"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    💾 Save Changes
+                  </>
+                )}
+              </button>
+            </div>
+            <MasterCatalogsForm data={data.catalogs} onUpdate={updateMasterCatalogs} />
+          </div>
         )}
         {currentSection === "currency" && (
-          <CurrencyAnchorForm data={data.currency} onUpdate={updateCurrency} />
+          <div className="space-y-6">
+            <div className="flex items-center justify-between border-b border-white/20 pb-4">
+              <h2 className="text-xl font-semibold text-white">Currency Anchor</h2>
+              <button
+                onClick={() => manualSave("currency")}
+                disabled={isSaving}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-500/50 text-black font-medium rounded-lg transition-colors flex items-center gap-2"
+              >
+                {isSaving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-black border-t-transparent"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    💾 Save Changes
+                  </>
+                )}
+              </button>
+            </div>
+            <CurrencyAnchorForm data={data.currency} onUpdate={updateCurrency} />
+          </div>
         )}
         {currentSection === "timeline" && (
-          <WorldTimelineForm data={data.timeline} onUpdate={updateTimeline} />
+          <div className="space-y-6">
+            <div className="flex items-center justify-between border-b border-white/20 pb-4">
+              <h2 className="text-xl font-semibold text-white">World Timeline</h2>
+              <button
+                onClick={() => manualSave("timeline")}
+                disabled={isSaving}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-500/50 text-black font-medium rounded-lg transition-colors flex items-center gap-2"
+              >
+                {isSaving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-black border-t-transparent"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    💾 Save Changes
+                  </>
+                )}
+              </button>
+            </div>
+            <WorldTimelineForm data={data.timeline} onUpdate={updateTimeline} />
+          </div>
         )}
       </div>
     </div>

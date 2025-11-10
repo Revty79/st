@@ -14,12 +14,47 @@ import {
   CurrencyData
 } from "@/types/settings";
 
+// Section header component with save button
+const SectionHeader = ({ title, onSave, isSaving }: {
+  title: string;
+  onSave?: () => void;
+  isSaving?: boolean;
+}) => (
+  <div className="flex items-center justify-between mb-6 pb-3 border-b border-white/20">
+    <h3 className="text-xl font-semibold text-white">{title}</h3>
+    {onSave && (
+      <button
+        onClick={onSave}
+        disabled={isSaving}
+        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 border ${
+          isSaving
+            ? 'bg-amber-600/20 border-amber-400/30 text-amber-300 cursor-not-allowed'
+            : 'bg-amber-600/10 hover:bg-amber-600/20 border-amber-400/20 hover:border-amber-400/40 text-amber-200 hover:text-amber-100'
+        } flex items-center gap-2`}
+      >
+        {isSaving ? (
+          <>
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-amber-400 border-t-transparent"></div>
+            Saving...
+          </>
+        ) : (
+          <>
+            💾 Save Changes
+          </>
+        )}
+      </button>
+    )}
+  </div>
+);
+
 interface PlacesOfInterestFormProps {
   data: PlacesOfInterestData;
   onUpdate: (updates: Partial<PlacesOfInterestData>) => void;
+  onManualSave?: () => void;
+  isManualSaving?: boolean;
 }
 
-export function PlacesOfInterestForm({ data, onUpdate }: PlacesOfInterestFormProps) {
+export function PlacesOfInterestForm({ data, onUpdate, onManualSave, isManualSaving }: PlacesOfInterestFormProps) {
   const handleAddSite = () => {
     onUpdate({
       sites: [...data.sites, {
@@ -70,10 +105,13 @@ export function PlacesOfInterestForm({ data, onUpdate }: PlacesOfInterestFormPro
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-white">Places of Interest</h2>
-        <div className="text-sm text-amber-400">MVS Required Section</div>
-      </div>
+      <SectionHeader 
+        title="Places of Interest" 
+        onSave={onManualSave} 
+        isSaving={isManualSaving} 
+      />
+
+      <div className="text-sm text-amber-400 text-center mb-4">MVS Required Section</div>
 
       <div className="text-sm text-zinc-300 bg-blue-950/30 border border-blue-500/30 rounded-lg p-4">
         <strong>Fill Goal:</strong> Create memorable locations with clear functions, dramatic potential, and plot hooks.
@@ -277,9 +315,11 @@ export function PlacesOfInterestForm({ data, onUpdate }: PlacesOfInterestFormPro
 interface CampaignSeedsFormProps {
   data: CampaignSeedsData;
   onUpdate: (updates: Partial<CampaignSeedsData>) => void;
+  onManualSave?: () => void;
+  isManualSaving?: boolean;
 }
 
-export function CampaignSeedsForm({ data, onUpdate }: CampaignSeedsFormProps) {
+export function CampaignSeedsForm({ data, onUpdate, onManualSave, isManualSaving }: CampaignSeedsFormProps) {
   const handleAddSeed = () => {
     onUpdate({
       seeds: [...data.seeds, {
@@ -385,10 +425,13 @@ export function CampaignSeedsForm({ data, onUpdate }: CampaignSeedsFormProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-white">Campaign Seeds</h2>
-        <div className="text-sm text-amber-400">MVS Required Section</div>
-      </div>
+      <SectionHeader 
+        title="Campaign Seeds" 
+        onSave={onManualSave} 
+        isSaving={isManualSaving} 
+      />
+
+      <div className="text-sm text-amber-400 text-center mb-4">MVS Required Section</div>
 
       <div className="text-sm text-zinc-300 bg-blue-950/30 border border-blue-500/30 rounded-lg p-4">
         <strong>Fill Goal:</strong> Create ready-to-run adventure frameworks that connect to setting elements.
@@ -598,9 +641,11 @@ interface MagicProfileFormProps {
   data: MagicProfileData;
   onUpdate: (updates: Partial<MagicProfileData>) => void;
   eraData?: any; // Era context for inheritance
+  onManualSave?: () => void;
+  isManualSaving?: boolean;
 }
 
-export function MagicProfileForm({ data, onUpdate, eraData }: MagicProfileFormProps) {
+export function MagicProfileForm({ data, onUpdate, eraData, onManualSave, isManualSaving }: MagicProfileFormProps) {
   const handleAddTaboo = () => {
     onUpdate({ localTaboos: [...data.localTaboos, ""] });
   };
@@ -640,10 +685,13 @@ export function MagicProfileForm({ data, onUpdate, eraData }: MagicProfileFormPr
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-white">Magic Profile</h2>
-        <div className="text-sm text-violet-400">Advanced Section</div>
-      </div>
+      <SectionHeader 
+        title="Magic Profile" 
+        onSave={onManualSave} 
+        isSaving={isManualSaving} 
+      />
+
+      <div className="text-sm text-violet-400 text-center mb-4">Advanced Section</div>
 
       <div className="text-sm text-zinc-300 bg-blue-950/30 border border-blue-500/30 rounded-lg p-4">
         <strong>Purpose:</strong> Customize how magical systems from the World and Era manifest in this specific setting.
@@ -781,7 +829,15 @@ export function MagicProfileForm({ data, onUpdate, eraData }: MagicProfileFormPr
   );
 }
 
-export function RacesBeingsForm({ data, onUpdate }: { data: RacesBeingsData; onUpdate: (updates: Partial<RacesBeingsData>) => void }) {
+export function RacesBeingsForm({ data, onUpdate, onManualSave, isManualSaving }: { 
+  data: RacesBeingsData; 
+  onUpdate: (updates: Partial<RacesBeingsData>) => void;
+  onManualSave?: () => void;
+  isManualSaving?: boolean;
+}) {
+  const [showAddRace, setShowAddRace] = useState(false);
+  const [newRaceName, setNewRaceName] = useState("");
+
   const handleRaceAvailabilityChange = (race: string, availability: 'Playable' | 'NPC-only' | 'Other') => {
     onUpdate({
       raceAvailability: { ...data.raceAvailability, [race]: availability }
@@ -795,26 +851,30 @@ export function RacesBeingsForm({ data, onUpdate }: { data: RacesBeingsData; onU
   };
 
   const handleAddRace = () => {
-    const raceName = prompt("Enter race name:");
-    if (raceName && raceName.trim()) {
+    if (newRaceName.trim()) {
       onUpdate({
-        raceAvailability: { ...data.raceAvailability, [raceName.trim()]: 'Playable' },
-        raceNotes: { ...data.raceNotes, [raceName.trim()]: '' }
+        raceAvailability: { ...data.raceAvailability, [newRaceName.trim()]: 'Playable' },
+        raceNotes: { ...data.raceNotes, [newRaceName.trim()]: '' }
       });
+      setNewRaceName("");
+      setShowAddRace(false);
     }
   };
 
+  const handleCancelAddRace = () => {
+    setNewRaceName("");
+    setShowAddRace(false);
+  };
+
   const handleRemoveRace = (race: string) => {
-    if (confirm(`Remove ${race}?`)) {
-      const newAvailability = { ...data.raceAvailability };
-      const newNotes = { ...data.raceNotes };
-      delete newAvailability[race];
-      delete newNotes[race];
-      onUpdate({
-        raceAvailability: newAvailability,
-        raceNotes: newNotes
-      });
-    }
+    const newAvailability = { ...data.raceAvailability };
+    const newNotes = { ...data.raceNotes };
+    delete newAvailability[race];
+    delete newNotes[race];
+    onUpdate({
+      raceAvailability: newAvailability,
+      raceNotes: newNotes
+    });
   };
 
   // Common fantasy races as defaults
@@ -825,10 +885,13 @@ export function RacesBeingsForm({ data, onUpdate }: { data: RacesBeingsData; onU
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-white">Races & Beings</h2>
-        <div className="text-sm text-violet-400">Advanced Section</div>
-      </div>
+      <SectionHeader 
+        title="Races & Beings" 
+        onSave={onManualSave} 
+        isSaving={isManualSaving} 
+      />
+
+      <div className="text-sm text-violet-400 text-center mb-4">Advanced Section</div>
 
       <div className="text-sm text-zinc-300 bg-blue-950/30 border border-blue-500/30 rounded-lg p-4">
         <strong>Purpose:</strong> Define which races are available to players and how they're perceived in this setting.
@@ -836,13 +899,45 @@ export function RacesBeingsForm({ data, onUpdate }: { data: RacesBeingsData; onU
 
       <div className="flex justify-between items-center">
         <h3 className="text-xl font-semibold text-white">Race Availability</h3>
-        <button
-          onClick={handleAddRace}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
-        >
-          Add Custom Race
-        </button>
+        {!showAddRace && (
+          <button
+            onClick={() => setShowAddRace(true)}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+          >
+            Add Custom Race
+          </button>
+        )}
       </div>
+
+      {/* Inline add race form */}
+      {showAddRace && (
+        <div className="bg-amber-950/30 border border-amber-500/30 rounded-lg p-4 space-y-3">
+          <h4 className="text-lg font-medium text-amber-200">Add Custom Race</h4>
+          <div className="flex gap-3">
+            <input
+              type="text"
+              value={newRaceName}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewRaceName(e.target.value)}
+              onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && handleAddRace()}
+              placeholder="Enter race name (e.g., Aasimar, Genasi)"
+              className="flex-1 rounded-lg bg-white/10 text-white placeholder:text-white/50 border border-white/20 px-3 py-2"
+            />
+            <button
+              onClick={handleAddRace}
+              disabled={!newRaceName.trim()}
+              className="px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black rounded"
+            >
+              Add
+            </button>
+            <button
+              onClick={handleCancelAddRace}
+              className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-4">
         {allRaces.map((race) => (
@@ -908,7 +1003,15 @@ export function RacesBeingsForm({ data, onUpdate }: { data: RacesBeingsData; onU
   );
 }
 
-export function CreaturesForm({ data, onUpdate }: { data: CreaturesData; onUpdate: (updates: Partial<CreaturesData>) => void }) {
+export function CreaturesForm({ data, onUpdate, onManualSave, isManualSaving }: { 
+  data: CreaturesData; 
+  onUpdate: (updates: Partial<CreaturesData>) => void;
+  onManualSave?: () => void;
+  isManualSaving?: boolean;
+}) {
+  const [showAddCreature, setShowAddCreature] = useState(false);
+  const [newCreatureName, setNewCreatureName] = useState("");
+
   const handleCreatureStatusChange = (creature: string, status: 'Common' | 'Uncommon' | 'Rare' | 'Protected' | 'Hunted') => {
     onUpdate({
       creatureStatus: { ...data.creatureStatus, [creature]: status }
@@ -929,26 +1032,30 @@ export function CreaturesForm({ data, onUpdate }: { data: CreaturesData; onUpdat
   };
 
   const handleAddCreature = () => {
-    const creatureName = prompt("Enter creature name:");
-    if (creatureName && creatureName.trim()) {
+    if (newCreatureName.trim()) {
       onUpdate({
-        creatureStatus: { ...data.creatureStatus, [creatureName.trim()]: 'Common' },
-        regionalAreas: { ...data.regionalAreas, [creatureName.trim()]: [] }
+        creatureStatus: { ...data.creatureStatus, [newCreatureName.trim()]: 'Common' },
+        regionalAreas: { ...data.regionalAreas, [newCreatureName.trim()]: [] }
       });
+      setNewCreatureName("");
+      setShowAddCreature(false);
     }
   };
 
+  const handleCancelAddCreature = () => {
+    setNewCreatureName("");
+    setShowAddCreature(false);
+  };
+
   const handleRemoveCreature = (creature: string) => {
-    if (confirm(`Remove ${creature}?`)) {
-      const newStatus = { ...data.creatureStatus };
-      const newAreas = { ...data.regionalAreas };
-      delete newStatus[creature];
-      delete newAreas[creature];
-      onUpdate({
-        creatureStatus: newStatus,
-        regionalAreas: newAreas
-      });
-    }
+    const newStatus = { ...data.creatureStatus };
+    const newAreas = { ...data.regionalAreas };
+    delete newStatus[creature];
+    delete newAreas[creature];
+    onUpdate({
+      creatureStatus: newStatus,
+      regionalAreas: newAreas
+    });
   };
 
   // Common fantasy creatures as defaults
@@ -962,10 +1069,13 @@ export function CreaturesForm({ data, onUpdate }: { data: CreaturesData; onUpdat
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-white">Creatures</h2>
-        <div className="text-sm text-violet-400">Advanced Section</div>
-      </div>
+      <SectionHeader 
+        title="Creatures" 
+        onSave={onManualSave} 
+        isSaving={isManualSaving} 
+      />
+
+      <div className="text-sm text-violet-400 text-center mb-4">Advanced Section</div>
 
       <div className="text-sm text-zinc-300 bg-blue-950/30 border border-blue-500/30 rounded-lg p-4">
         <strong>Purpose:</strong> Define creature availability and encounter parameters for this region.
@@ -999,13 +1109,45 @@ export function CreaturesForm({ data, onUpdate }: { data: CreaturesData; onUpdat
       {/* Creature Status */}
       <div className="flex justify-between items-center">
         <h3 className="text-xl font-semibold text-white">Creature Status</h3>
-        <button
-          onClick={handleAddCreature}
-          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
-        >
-          Add Custom Creature
-        </button>
+        {!showAddCreature && (
+          <button
+            onClick={() => setShowAddCreature(true)}
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
+          >
+            Add Custom Creature
+          </button>
+        )}
       </div>
+
+      {/* Inline add creature form */}
+      {showAddCreature && (
+        <div className="bg-green-950/30 border border-green-500/30 rounded-lg p-4 space-y-3">
+          <h4 className="text-lg font-medium text-green-200">Add Custom Creature</h4>
+          <div className="flex gap-3">
+            <input
+              type="text"
+              value={newCreatureName}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewCreatureName(e.target.value)}
+              onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && handleAddCreature()}
+              placeholder="Enter creature name (e.g., Phoenix, Manticore)"
+              className="flex-1 rounded-lg bg-white/10 text-white placeholder:text-white/50 border border-white/20 px-3 py-2"
+            />
+            <button
+              onClick={handleAddCreature}
+              disabled={!newCreatureName.trim()}
+              className="px-4 py-2 bg-green-500 hover:bg-green-400 disabled:opacity-50 text-black rounded"
+            >
+              Add
+            </button>
+            <button
+              onClick={handleCancelAddCreature}
+              className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-4">
         {allCreatures.map((creature) => (
@@ -1073,7 +1215,15 @@ export function CreaturesForm({ data, onUpdate }: { data: CreaturesData; onUpdat
   );
 }
 
-export function DeitiesBeliefForm({ data, onUpdate }: { data: DeitiesBeliefData; onUpdate: (updates: Partial<DeitiesBeliefData>) => void }) {
+export function DeitiesBeliefForm({ data, onUpdate, onManualSave, isManualSaving }: { 
+  data: DeitiesBeliefData; 
+  onUpdate: (updates: Partial<DeitiesBeliefData>) => void;
+  onManualSave?: () => void;
+  isManualSaving?: boolean;
+}) {
+  const [showAddDeity, setShowAddDeity] = useState(false);
+  const [newDeityName, setNewDeityName] = useState("");
+
   const handleDeityInfluenceChange = (deity: string, influence: 'Low' | 'Medium' | 'High' | 'Dominant') => {
     onUpdate({
       chosenDeities: { ...data.chosenDeities, [deity]: influence }
@@ -1087,26 +1237,30 @@ export function DeitiesBeliefForm({ data, onUpdate }: { data: DeitiesBeliefData;
   };
 
   const handleAddDeity = () => {
-    const deityName = prompt("Enter deity or belief system name:");
-    if (deityName && deityName.trim()) {
+    if (newDeityName.trim()) {
       onUpdate({
-        chosenDeities: { ...data.chosenDeities, [deityName.trim()]: 'Low' },
-        teachingsWorship: { ...data.teachingsWorship, [deityName.trim()]: '' }
+        chosenDeities: { ...data.chosenDeities, [newDeityName.trim()]: 'Low' },
+        teachingsWorship: { ...data.teachingsWorship, [newDeityName.trim()]: '' }
       });
+      setNewDeityName("");
+      setShowAddDeity(false);
     }
   };
 
+  const handleCancelAddDeity = () => {
+    setNewDeityName("");
+    setShowAddDeity(false);
+  };
+
   const handleRemoveDeity = (deity: string) => {
-    if (confirm(`Remove ${deity}?`)) {
-      const newDeities = { ...data.chosenDeities };
-      const newTeachings = { ...data.teachingsWorship };
-      delete newDeities[deity];
-      delete newTeachings[deity];
-      onUpdate({
-        chosenDeities: newDeities,
-        teachingsWorship: newTeachings
-      });
-    }
+    const newDeities = { ...data.chosenDeities };
+    const newTeachings = { ...data.teachingsWorship };
+    delete newDeities[deity];
+    delete newTeachings[deity];
+    onUpdate({
+      chosenDeities: newDeities,
+      teachingsWorship: newTeachings
+    });
   };
 
   // Common fantasy deities/belief systems as defaults
@@ -1121,10 +1275,13 @@ export function DeitiesBeliefForm({ data, onUpdate }: { data: DeitiesBeliefData;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-white">Deities & Belief</h2>
-        <div className="text-sm text-violet-400">Advanced Section</div>
-      </div>
+      <SectionHeader 
+        title="Deities & Belief" 
+        onSave={onManualSave} 
+        isSaving={isManualSaving} 
+      />
+
+      <div className="text-sm text-violet-400 text-center mb-4">Advanced Section</div>
 
       <div className="text-sm text-zinc-300 bg-blue-950/30 border border-blue-500/30 rounded-lg p-4">
         <strong>Purpose:</strong> Define religious and spiritual influences in this setting, from dominant faiths to local customs.
@@ -1132,13 +1289,45 @@ export function DeitiesBeliefForm({ data, onUpdate }: { data: DeitiesBeliefData;
 
       <div className="flex justify-between items-center">
         <h3 className="text-xl font-semibold text-white">Religious Influence</h3>
-        <button
-          onClick={handleAddDeity}
-          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg"
-        >
-          Add Deity/Belief
-        </button>
+        {!showAddDeity && (
+          <button
+            onClick={() => setShowAddDeity(true)}
+            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg"
+          >
+            Add Deity/Belief
+          </button>
+        )}
       </div>
+
+      {/* Inline add deity form */}
+      {showAddDeity && (
+        <div className="bg-purple-950/30 border border-purple-500/30 rounded-lg p-4 space-y-3">
+          <h4 className="text-lg font-medium text-purple-200">Add Deity or Belief System</h4>
+          <div className="flex gap-3">
+            <input
+              type="text"
+              value={newDeityName}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewDeityName(e.target.value)}
+              onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && handleAddDeity()}
+              placeholder="Enter deity or belief name (e.g., Sky Father, Coin Lord)"
+              className="flex-1 rounded-lg bg-white/10 text-white placeholder:text-white/50 border border-white/20 px-3 py-2"
+            />
+            <button
+              onClick={handleAddDeity}
+              disabled={!newDeityName.trim()}
+              className="px-4 py-2 bg-purple-500 hover:bg-purple-400 disabled:opacity-50 text-white rounded"
+            >
+              Add
+            </button>
+            <button
+              onClick={handleCancelAddDeity}
+              className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-4">
         {allDeities.map((deity) => (
@@ -1206,7 +1395,17 @@ export function DeitiesBeliefForm({ data, onUpdate }: { data: DeitiesBeliefData;
   );
 }
 
-export function RelationsLawForm({ data, onUpdate }: { data: RelationsLawData; onUpdate: (updates: Partial<RelationsLawData>) => void }) {
+export function RelationsLawForm({ data, onUpdate, onManualSave, isManualSaving }: { 
+  data: RelationsLawData; 
+  onUpdate: (updates: Partial<RelationsLawData>) => void;
+  onManualSave?: () => void;
+  isManualSaving?: boolean;
+}) {
+  const [showAddConsequence, setShowAddConsequence] = useState(false);
+  const [newConsequenceAction, setNewConsequenceAction] = useState("");
+  const [showAddCourt, setShowAddCourt] = useState(false);
+  const [newCourtName, setNewCourtName] = useState("");
+
   const handleGovernanceChange = (field: keyof typeof data.governance, value: string) => {
     onUpdate({
       governance: { ...data.governance, [field]: value }
@@ -1226,32 +1425,42 @@ export function RelationsLawForm({ data, onUpdate }: { data: RelationsLawData; o
   };
 
   const handleAddConsequence = () => {
-    const action = prompt("Enter PC action (e.g., 'Steals from a merchant'):");
-    if (action && action.trim()) {
+    if (newConsequenceAction.trim()) {
       onUpdate({
-        consequencesTable: { ...data.consequencesTable, [action.trim()]: '' }
+        consequencesTable: { ...data.consequencesTable, [newConsequenceAction.trim()]: '' }
       });
+      setNewConsequenceAction("");
+      setShowAddConsequence(false);
     }
+  };
+
+  const handleCancelAddConsequence = () => {
+    setNewConsequenceAction("");
+    setShowAddConsequence(false);
   };
 
   const handleRemoveConsequence = (action: string) => {
-    if (confirm(`Remove consequence rule for "${action}"?`)) {
-      const newTable = { ...data.consequencesTable };
-      delete newTable[action];
-      onUpdate({ consequencesTable: newTable });
-    }
+    const newTable = { ...data.consequencesTable };
+    delete newTable[action];
+    onUpdate({ consequencesTable: newTable });
   };
 
   const handleAddCourt = () => {
-    const courtName = prompt("Enter court/tribunal name:");
-    if (courtName && courtName.trim()) {
+    if (newCourtName.trim()) {
       onUpdate({
         governance: {
           ...data.governance,
-          courts: [...data.governance.courts, courtName.trim()]
+          courts: [...data.governance.courts, newCourtName.trim()]
         }
       });
+      setNewCourtName("");
+      setShowAddCourt(false);
     }
+  };
+
+  const handleCancelAddCourt = () => {
+    setNewCourtName("");
+    setShowAddCourt(false);
   };
 
   const handleUpdateCourt = (index: number, value: string) => {
@@ -1271,10 +1480,13 @@ export function RelationsLawForm({ data, onUpdate }: { data: RelationsLawData; o
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-white">Relations & Law</h2>
-        <div className="text-sm text-violet-400">Advanced Section</div>
-      </div>
+      <SectionHeader 
+        title="Relations & Law" 
+        onSave={onManualSave} 
+        isSaving={isManualSaving} 
+      />
+
+      <div className="text-sm text-violet-400 text-center mb-4">Advanced Section</div>
 
       <div className="text-sm text-zinc-300 bg-blue-950/30 border border-blue-500/30 rounded-lg p-4">
         <strong>Purpose:</strong> Define how justice, governance, and social order function in this setting.
@@ -1311,13 +1523,45 @@ export function RelationsLawForm({ data, onUpdate }: { data: RelationsLawData; o
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-white">Courts & Tribunals</h3>
-          <button
-            onClick={handleAddCourt}
-            className="px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
-          >
-            Add Court
-          </button>
+          {!showAddCourt && (
+            <button
+              onClick={() => setShowAddCourt(true)}
+              className="px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+            >
+              Add Court
+            </button>
+          )}
         </div>
+
+        {/* Inline add court form */}
+        {showAddCourt && (
+          <div className="bg-blue-950/30 border border-blue-500/30 rounded-lg p-4 space-y-3">
+            <h4 className="text-lg font-medium text-blue-200">Add Court or Tribunal</h4>
+            <div className="flex gap-3">
+              <input
+                type="text"
+                value={newCourtName}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewCourtName(e.target.value)}
+                onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && handleAddCourt()}
+                placeholder="Enter court name (e.g., Trade Disputes Court, Criminal Tribunal)"
+                className="flex-1 rounded-lg bg-white/10 text-white placeholder:text-white/50 border border-white/20 px-3 py-2"
+              />
+              <button
+                onClick={handleAddCourt}
+                disabled={!newCourtName.trim()}
+                className="px-4 py-2 bg-blue-500 hover:bg-blue-400 disabled:opacity-50 text-white rounded"
+              >
+                Add
+              </button>
+              <button
+                onClick={handleCancelAddCourt}
+                className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
         
         <div className="space-y-3">
           {data.governance.courts.map((court: string, index: number) => (
@@ -1371,13 +1615,45 @@ export function RelationsLawForm({ data, onUpdate }: { data: RelationsLawData; o
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-white">Consequences Table</h3>
-          <button
-            onClick={handleAddConsequence}
-            className="px-3 py-1 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg"
-          >
-            Add Rule
-          </button>
+          {!showAddConsequence && (
+            <button
+              onClick={() => setShowAddConsequence(true)}
+              className="px-3 py-1 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg"
+            >
+              Add Rule
+            </button>
+          )}
         </div>
+
+        {/* Inline add consequence form */}
+        {showAddConsequence && (
+          <div className="bg-red-950/30 border border-red-500/30 rounded-lg p-4 space-y-3">
+            <h4 className="text-lg font-medium text-red-200">Add Consequence Rule</h4>
+            <div className="flex gap-3">
+              <input
+                type="text"
+                value={newConsequenceAction}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewConsequenceAction(e.target.value)}
+                onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && handleAddConsequence()}
+                placeholder="Enter PC action (e.g., 'Steals from a merchant', 'Casts magic publicly')"
+                className="flex-1 rounded-lg bg-white/10 text-white placeholder:text-white/50 border border-white/20 px-3 py-2"
+              />
+              <button
+                onClick={handleAddConsequence}
+                disabled={!newConsequenceAction.trim()}
+                className="px-4 py-2 bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white rounded"
+              >
+                Add
+              </button>
+              <button
+                onClick={handleCancelAddConsequence}
+                className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
         <div className="text-sm text-zinc-400 mb-4">
           Define "If PC does X, then likely Y" rules for common actions.
         </div>
@@ -1429,7 +1705,15 @@ export function RelationsLawForm({ data, onUpdate }: { data: RelationsLawData; o
   );
 }
 
-export function CurrencyForm({ data, onUpdate }: { data: CurrencyData; onUpdate: (updates: Partial<CurrencyData>) => void }) {
+export function CurrencyForm({ data, onUpdate, onManualSave, isManualSaving }: { 
+  data: CurrencyData; 
+  onUpdate: (updates: Partial<CurrencyData>) => void;
+  onManualSave?: () => void;
+  isManualSaving?: boolean;
+}) {
+  const [showAddSlang, setShowAddSlang] = useState(false);
+  const [newSlangDenomination, setNewSlangDenomination] = useState("");
+
   const handleBarterQuirksChange = (value: string) => {
     onUpdate({ barterQuirks: value });
   };
@@ -1447,28 +1731,35 @@ export function CurrencyForm({ data, onUpdate }: { data: CurrencyData; onUpdate:
   };
 
   const handleAddSlang = () => {
-    const denomination = prompt("Enter denomination name:");
-    if (denomination && denomination.trim()) {
+    if (newSlangDenomination.trim()) {
       onUpdate({
-        currencySlang: { ...data.currencySlang, [denomination.trim()]: '' }
+        currencySlang: { ...data.currencySlang, [newSlangDenomination.trim()]: '' }
       });
+      setNewSlangDenomination("");
+      setShowAddSlang(false);
     }
   };
 
+  const handleCancelAddSlang = () => {
+    setNewSlangDenomination("");
+    setShowAddSlang(false);
+  };
+
   const handleRemoveSlang = (denomination: string) => {
-    if (confirm(`Remove slang for "${denomination}"?`)) {
-      const newSlang = { ...data.currencySlang };
-      delete newSlang[denomination];
-      onUpdate({ currencySlang: newSlang });
-    }
+    const newSlang = { ...data.currencySlang };
+    delete newSlang[denomination];
+    onUpdate({ currencySlang: newSlang });
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-white">Currency (Region-Inherited)</h2>
-        <div className="text-sm text-violet-400">Advanced Section</div>
-      </div>
+      <SectionHeader 
+        title="Currency (Region-Inherited)" 
+        onSave={onManualSave} 
+        isSaving={isManualSaving} 
+      />
+
+      <div className="text-sm text-violet-400 text-center mb-4">Advanced Section</div>
 
       <div className="text-sm text-zinc-300 bg-blue-950/30 border border-blue-500/30 rounded-lg p-4">
         <strong>Purpose:</strong> Display inherited currency from Era/Region settings plus local variations and slang.
@@ -1517,13 +1808,45 @@ export function CurrencyForm({ data, onUpdate }: { data: CurrencyData; onUpdate:
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-white">Local Currency Slang</h3>
-          <button
-            onClick={handleAddSlang}
-            className="px-3 py-1 text-sm bg-amber-600 hover:bg-amber-700 text-white rounded-lg"
-          >
-            Add Slang Term
-          </button>
+          {!showAddSlang && (
+            <button
+              onClick={() => setShowAddSlang(true)}
+              className="px-3 py-1 text-sm bg-amber-600 hover:bg-amber-700 text-white rounded-lg"
+            >
+              Add Slang Term
+            </button>
+          )}
         </div>
+
+        {/* Inline add slang form */}
+        {showAddSlang && (
+          <div className="bg-amber-950/30 border border-amber-500/30 rounded-lg p-4 space-y-3">
+            <h4 className="text-lg font-medium text-amber-200">Add Currency Slang</h4>
+            <div className="flex gap-3">
+              <input
+                type="text"
+                value={newSlangDenomination}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewSlangDenomination(e.target.value)}
+                onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && handleAddSlang()}
+                placeholder="Enter denomination name (e.g., Gold Piece, Silver Mark)"
+                className="flex-1 rounded-lg bg-white/10 text-white placeholder:text-white/50 border border-white/20 px-3 py-2"
+              />
+              <button
+                onClick={handleAddSlang}
+                disabled={!newSlangDenomination.trim()}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black rounded"
+              >
+                Add
+              </button>
+              <button
+                onClick={handleCancelAddSlang}
+                className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
         <div className="text-sm text-zinc-400 mb-4">
           Regional nicknames and colloquialisms for money
         </div>

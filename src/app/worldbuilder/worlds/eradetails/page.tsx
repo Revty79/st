@@ -5,6 +5,81 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import EraDetailsForm, { EraDetailsData, EraBasicInfo, EraBackdropDefaults, EraTradeEconomics, EraCatalogs } from "@/components/worldbuilder/world-details/EraDetailsForm";
 
+// Navigation tabs component
+const NavigationTabs = ({ currentSection, onSectionChange }: {
+  currentSection: string;
+  onSectionChange: (section: string) => void;
+}) => {
+  const sections = [
+    { id: "basic", label: "Basic Info", icon: "📋" },
+    { id: "backdrop", label: "Backdrop", icon: "🌍" },
+    { id: "governments", label: "Governments", icon: "⚔️" },
+    { id: "trade", label: "Trade & Economics", icon: "💰" },
+    { id: "catalogs", label: "Era Catalogs", icon: "📚" },
+    { id: "events", label: "Catalyst Events", icon: "⚡" },
+    { id: "settings", label: "Setting Stubs", icon: "🏛️" }
+  ];
+
+  return (
+    <div className="border-b border-white/15 bg-white/10 backdrop-blur-sm sticky top-0 z-10">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex overflow-x-auto">
+          {sections.map((section) => (
+            <button
+              key={section.id}
+              onClick={() => onSectionChange(section.id)}
+              className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                currentSection === section.id
+                  ? "border-amber-400 text-amber-100"
+                  : "border-transparent text-zinc-100 hover:text-white hover:border-white/30"
+              }`}
+            >
+              <span className="mr-2">{section.icon}</span>
+              {section.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Save indicator component
+const SaveIndicator = ({ isSaving, isManualSaving, lastSaved }: {
+  isSaving: boolean;
+  isManualSaving: boolean;
+  lastSaved: Date | null;
+}) => {
+  if (isManualSaving) {
+    return (
+      <div className="flex items-center text-amber-400">
+        <div className="animate-spin rounded-full h-4 w-4 border-2 border-amber-400 border-t-transparent mr-2"></div>
+        <span className="text-sm">Saving manually...</span>
+      </div>
+    );
+  }
+
+  if (isSaving) {
+    return (
+      <div className="flex items-center text-blue-400">
+        <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-400 border-t-transparent mr-2"></div>
+        <span className="text-sm">Auto-saving...</span>
+      </div>
+    );
+  }
+
+  if (lastSaved) {
+    return (
+      <div className="flex items-center text-green-400">
+        <span className="mr-2">✓</span>
+        <span className="text-sm">Saved {lastSaved.toLocaleTimeString()}</span>
+      </div>
+    );
+  }
+
+  return null;
+};
+
 // Loading component
 const Loading = () => (
   <div className="flex items-center justify-center min-h-screen">
@@ -28,6 +103,9 @@ function EraDetailsContent() {
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [manualSaving, setManualSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [currentSection, setCurrentSection] = useState("basic");
   const [worldRealms, setWorldRealms] = useState<Array<{ id: string; name: string }>>([]);
   
   const [eraData, setEraData] = useState<EraDetailsData>({
@@ -103,7 +181,40 @@ function EraDetailsContent() {
     console.log("Era data updated (mock save):", newData);
     setTimeout(() => {
       setSaving(false);
+      setLastSaved(new Date());
     }, 300);
+  }
+
+  // Manual save function for save buttons
+  function manualSave() {
+    setManualSaving(true);
+    console.log("Manual save triggered for Era data:", eraData);
+    setTimeout(() => {
+      setManualSaving(false);
+      setLastSaved(new Date());
+    }, 800);
+  }
+
+  // Get section-specific data for saves
+  function getSectionData(section: string) {
+    switch (section) {
+      case "basic":
+        return { basicInfo: eraData.basicInfo };
+      case "backdrop":
+        return { backdropDefaults: eraData.backdropDefaults };
+      case "governments":
+        return { governments: eraData.governments };
+      case "trade":
+        return { tradeEconomics: eraData.tradeEconomics };
+      case "catalogs":
+        return { catalogs: eraData.catalogs };
+      case "events":
+        return { catalystEvents: eraData.catalystEvents };
+      case "settings":
+        return { settingStubs: eraData.settingStubs };
+      default:
+        return eraData;
+    }
   }
 
   if (loading) {
@@ -136,14 +247,15 @@ function EraDetailsContent() {
               </p>
             </div>
           </div>
-          {saving && (
-            <div className="flex items-center text-amber-400">
-              <div className="animate-spin rounded-full h-4 w-4 border-2 border-amber-400 border-t-transparent mr-2"></div>
-              <span className="text-sm">Saving...</span>
-            </div>
-          )}
+          <SaveIndicator isSaving={saving} isManualSaving={manualSaving} lastSaved={lastSaved} />
         </div>
       </header>
+
+      {/* Navigation */}
+      <NavigationTabs 
+        currentSection={currentSection} 
+        onSectionChange={setCurrentSection}
+      />
 
       {/* Era Details Form */}
       <div className="rounded-2xl border border-white/15 bg-white/10 backdrop-blur-sm shadow-sm p-6">
@@ -151,6 +263,9 @@ function EraDetailsContent() {
           data={eraData}
           onUpdate={saveEraData}
           worldRealms={worldRealms}
+          currentSection={currentSection}
+          onManualSave={manualSave}
+          isManualSaving={manualSaving}
         />
       </div>
     </div>

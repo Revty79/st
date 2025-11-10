@@ -110,15 +110,25 @@ const NavigationTabs = ({ currentSection, onSectionChange, mvsSections }: {
 };
 
 // Save indicator component
-const SaveIndicator = ({ isSaving, lastSaved }: {
+const SaveIndicator = ({ isSaving, isManualSaving, lastSaved }: {
   isSaving: boolean;
+  isManualSaving: boolean;
   lastSaved: Date | null;
 }) => {
-  if (isSaving) {
+  if (isManualSaving) {
     return (
       <div className="flex items-center text-amber-400">
         <div className="animate-spin rounded-full h-4 w-4 border-2 border-amber-400 border-t-transparent mr-2"></div>
-        <span className="text-sm">Saving...</span>
+        <span className="text-sm">Saving manually...</span>
+      </div>
+    );
+  }
+
+  if (isSaving) {
+    return (
+      <div className="flex items-center text-blue-400">
+        <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-400 border-t-transparent mr-2"></div>
+        <span className="text-sm">Auto-saving...</span>
       </div>
     );
   }
@@ -153,6 +163,7 @@ function SettingDetailsContent() {
   const [error, setError] = useState("");
   const [currentSection, setCurrentSection] = useState("frontmatter");
   const [isSaving, setIsSaving] = useState(false);
+  const [manualSaving, setManualSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [settingName, setSettingName] = useState("");
   const [eraName, setEraName] = useState("");
@@ -376,6 +387,16 @@ function SettingDetailsContent() {
     }
   };
 
+  // Manual save function for save buttons
+  const manualSave = () => {
+    setManualSaving(true);
+    console.log("Manual save triggered for Setting data:", data);
+    setTimeout(() => {
+      setManualSaving(false);
+      setLastSaved(new Date());
+    }, 800);
+  };
+
   // Update handlers for each section
   const updateSection = (section: keyof SettingsData) => (updates: any) => {
     const newData = { ...data[section], ...updates };
@@ -463,7 +484,7 @@ function SettingDetailsContent() {
               </p>
             </div>
           </div>
-          <SaveIndicator isSaving={isSaving} lastSaved={lastSaved} />
+          <SaveIndicator isSaving={isSaving} isManualSaving={manualSaving} lastSaved={lastSaved} />
         </div>
       </header>
 
@@ -481,46 +502,114 @@ function SettingDetailsContent() {
             data={data.frontMatter} 
             onUpdate={updateSection("frontMatter")}
             eraData={eraData}
+            onManualSave={manualSave}
+            isManualSaving={manualSaving}
           />
         )}
         {currentSection === "timeplace" && (
-          <TimeAndPlaceForm data={data.timeAndPlace} onUpdate={updateSection("timeAndPlace")} />
+          <TimeAndPlaceForm 
+            data={data.timeAndPlace} 
+            onUpdate={updateSection("timeAndPlace")}
+            onManualSave={manualSave}
+            isManualSaving={manualSaving}
+          />
         )}
         {currentSection === "overview" && (
-          <RegionOverviewForm data={data.regionOverview} onUpdate={updateSection("regionOverview")} />
+          <RegionOverviewForm 
+            data={data.regionOverview} 
+            onUpdate={updateSection("regionOverview")}
+            onManualSave={manualSave}
+            isManualSaving={manualSaving}
+          />
         )}
         {currentSection === "geography" && (
-          <GeographyAndClimateForm data={data.geographyEnvironment} onUpdate={updateSection("geographyEnvironment")} />
+          <GeographyAndClimateForm 
+            data={data.geographyEnvironment} 
+            onUpdate={updateSection("geographyEnvironment")}
+            onManualSave={manualSave}
+            isManualSaving={manualSaving}
+          />
         )}
         {currentSection === "builtenvironment" && (
-          <BuiltEnvironmentForm data={data.builtEnvironment} onUpdate={updateSection("builtEnvironment")} />
+          <BuiltEnvironmentForm 
+            data={data.builtEnvironment} 
+            onUpdate={updateSection("builtEnvironment")}
+            onManualSave={manualSave}
+            isManualSaving={manualSaving}
+          />
         )}
         {currentSection === "factions" && (
-          <PowerFactionsForm data={data.powerFactions} onUpdate={updateSection("powerFactions")} />
+          <PowerFactionsForm 
+            data={data.powerFactions} 
+            onUpdate={updateSection("powerFactions")}
+            onManualSave={manualSave}
+            isManualSaving={manualSaving}
+          />
         )}
         {currentSection === "places" && (
-          <PlacesOfInterestForm data={data.placesOfInterest} onUpdate={updateSection("placesOfInterest")} />
+          <PlacesOfInterestForm 
+            data={data.placesOfInterest} 
+            onUpdate={updateSection("placesOfInterest")}
+            onManualSave={manualSave}
+            isManualSaving={manualSaving}
+          />
         )}
         {currentSection === "seeds" && (
-          <CampaignSeedsForm data={data.campaignSeeds} onUpdate={updateSection("campaignSeeds")} />
+          <CampaignSeedsForm 
+            data={data.campaignSeeds} 
+            onUpdate={updateSection("campaignSeeds")}
+            onManualSave={manualSave}
+            isManualSaving={manualSaving}
+          />
         )}
         {currentSection === "magic" && (
-          <MagicProfileForm data={data.magicProfile} onUpdate={updateSection("magicProfile")} eraData={eraData} />
+          <MagicProfileForm 
+            data={data.magicProfile} 
+            onUpdate={updateSection("magicProfile")} 
+            eraData={eraData}
+            onManualSave={manualSave}
+            isManualSaving={manualSaving}
+          />
         )}
         {currentSection === "races" && (
-          <RacesBeingsForm data={data.racesBeings} onUpdate={updateSection("racesBeings")} />
+          <RacesBeingsForm 
+            data={data.racesBeings} 
+            onUpdate={updateSection("racesBeings")}
+            onManualSave={manualSave}
+            isManualSaving={manualSaving}
+          />
         )}
         {currentSection === "creatures" && (
-          <CreaturesForm data={data.creatures} onUpdate={updateSection("creatures")} />
+          <CreaturesForm 
+            data={data.creatures} 
+            onUpdate={updateSection("creatures")}
+            onManualSave={manualSave}
+            isManualSaving={manualSaving}
+          />
         )}
         {currentSection === "deities" && (
-          <DeitiesBeliefForm data={data.deitiesBelief} onUpdate={updateSection("deitiesBelief")} />
+          <DeitiesBeliefForm 
+            data={data.deitiesBelief} 
+            onUpdate={updateSection("deitiesBelief")}
+            onManualSave={manualSave}
+            isManualSaving={manualSaving}
+          />
         )}
         {currentSection === "relationslaw" && (
-          <RelationsLawForm data={data.relationsLaw} onUpdate={updateSection("relationsLaw")} />
+          <RelationsLawForm 
+            data={data.relationsLaw} 
+            onUpdate={updateSection("relationsLaw")}
+            onManualSave={manualSave}
+            isManualSaving={manualSaving}
+          />
         )}
         {currentSection === "currency" && (
-          <CurrencyForm data={data.currency} onUpdate={updateSection("currency")} />
+          <CurrencyForm 
+            data={data.currency} 
+            onUpdate={updateSection("currency")}
+            onManualSave={manualSave}
+            isManualSaving={manualSaving}
+          />
         )}
       </div>
     </div>

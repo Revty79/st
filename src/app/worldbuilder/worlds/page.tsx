@@ -3,7 +3,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { TimelineV2 } from "../../../components/TimelineV2";
+import { TimelineV4 } from "@/components/TimelineV4";
 import WorldBuilderNavigation from "@/components/worldbuilder/WorldBuilderNavigation";
 import NewWorldForm from "@/components/worldbuilder/NewWorldForm";
 import EditWorldForm from "@/components/worldbuilder/EditWorldForm";
@@ -180,8 +180,9 @@ export default function WorldsPage() {
   const [showNewMarker, setShowNewMarker] = useState(false);
   const [inlineSettingEraId, setInlineSettingEraId] = useState<number | null>(null);
 
-  // Timeline Viewer (V2) modal toggle
+  // Timeline Viewer (V3) modal toggle and settings
   const [showViewer, setShowViewer] = useState(false);
+  const [timelineViewMode, setTimelineViewMode] = useState<'overview' | 'detailed' | 'compact'>('detailed');
 
   // scroll target (still used to anchor the section)
   const timelineRef = useRef<HTMLDivElement | null>(null);
@@ -547,9 +548,9 @@ export default function WorldsPage() {
               className="rounded-lg border border-violet-400/40 px-3 py-1.5 text-sm text-violet-200 hover:bg-violet-400/10 disabled:opacity-50"
               disabled={!eras.length}
               onClick={() => setShowViewer(true)}
-              title={eras.length ? "Open Timeline Viewer" : "Add an era to view the timeline"}
+              title={eras.length ? "Open Timeline Navigator" : "Add an era to view the timeline"}
             >
-              Timeline Viewer
+              Timeline Navigator
             </button>
             <Link
               href={`/worldbuilder/worlds/worlddetails?worldId=${active.id}`}
@@ -578,7 +579,7 @@ export default function WorldsPage() {
           updateMarker={updateMarker}
         />
 
-        {/* Add Era - now redirects to details page */}
+        {/* Add Era - now includes date inputs */}
         {showNewEra && (
           <div className="rounded-xl border border-white/10 bg-black/30 p-4 mb-4">
             <div className="text-sm font-semibold text-zinc-100 mb-4">Create New Era</div>
@@ -586,12 +587,15 @@ export default function WorldsPage() {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
               const name = formData.get('name') as string;
+              const startYear = formData.get('startYear') as string;
+              const endYear = formData.get('endYear') as string;
+              
               if (name && selectedWorldId) {
                 const newEra = await createEra({ 
                   name, 
                   description: "", 
-                  startYear: null, 
-                  endYear: null, 
+                  startYear: startYear ? parseInt(startYear, 10) : null, 
+                  endYear: endYear ? parseInt(endYear, 10) : null, 
                   color: "#8b5cf6" 
                 });
                 if (newEra) {
@@ -600,20 +604,72 @@ export default function WorldsPage() {
                 }
               }
             }}>
-              <input
-                type="text"
-                name="name"
-                placeholder="Era name (e.g., Age of Discovery)"
-                required
-                className="w-full rounded-lg bg-white/10 text-white placeholder:text-white/50 border border-white/20 px-3 py-2 mb-4"
-              />
-              <div className="flex gap-2">
+              <div className="space-y-4">
+                <input
+                  type="text"
+                  name="name"
+                  placeholder="Era name (e.g., Age of Discovery)"
+                  required
+                  className="w-full rounded-lg bg-white/10 text-white placeholder:text-white/50 border border-white/20 px-3 py-2"
+                />
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-white/70 mb-2">Start Year (optional)</label>
+                    <input
+                      type="number"
+                      name="startYear"
+                      placeholder="e.g., 1420"
+                      className="w-full rounded-lg bg-white/10 text-white placeholder:text-white/50 border border-white/20 px-3 py-2"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm text-white/70 mb-2">End Year (optional)</label>
+                    <input
+                      type="number"
+                      name="endYear"
+                      placeholder="e.g., 1520"
+                      className="w-full rounded-lg bg-white/10 text-white placeholder:text-white/50 border border-white/20 px-3 py-2"
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex gap-2 mt-4">
                 <button
+                  type="submit"
                   className="px-4 py-2 bg-amber-500 text-black rounded-lg hover:bg-amber-400 font-medium"
                 >
                   Create & Configure
                 </button>
                 <button
+                  type="button"
+                  onClick={async (e: React.MouseEvent<HTMLButtonElement>) => {
+                    e.preventDefault();
+                    const form = (e.target as HTMLElement).closest('form') as HTMLFormElement;
+                    const formData = new FormData(form);
+                    const name = formData.get('name') as string;
+                    const startYear = formData.get('startYear') as string;
+                    const endYear = formData.get('endYear') as string;
+                    
+                    if (name && selectedWorldId) {
+                      await createEra({ 
+                        name, 
+                        description: "", 
+                        startYear: startYear ? parseInt(startYear, 10) : null, 
+                        endYear: endYear ? parseInt(endYear, 10) : null, 
+                        color: "#8b5cf6" 
+                      });
+                      setShowNewEra(false);
+                    }
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 font-medium"
+                >
+                  Create
+                </button>
+                <button
+                  type="button"
                   onClick={() => setShowNewEra(false)}
                   className="px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20"
                 >
@@ -663,7 +719,7 @@ export default function WorldsPage() {
         <RightPane />
       </div>
 
-      {/* TIMELINE VIEWER MODAL (TimelineV2) */}
+      {/* TIMELINE NAVIGATOR MODAL (TimelineV3) */}
       {showViewer && active && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center"
@@ -676,7 +732,7 @@ export default function WorldsPage() {
           >
             <div className="flex items-center justify-between mb-3">
               <div className="text-sm font-semibold text-zinc-200">
-                Timeline Viewer{active.name}
+                Timeline Navigator{active.name}
               </div>
               <button
                 className="rounded-lg border border-white/15 px-3 py-1 text-sm hover:bg-white/10"
@@ -686,27 +742,45 @@ export default function WorldsPage() {
               </button>
             </div>
             <div className="rounded-xl border border-white/10 bg-black/40 p-3 overflow-hidden">
-              <TimelineV2
+              <TimelineV4
                 eras={active.eras.map((e) => ({
                   id: e.id.toString(),
                   name: e.name,
                   startYear: e.startYear ?? undefined,
                   endYear: e.endYear ?? undefined,
                   color: e.color ?? undefined,
+                  description: e.description ?? undefined,
                 }))}
                 settings={active.settings.map((s) => ({
                   id: s.id.toString(),
                   name: s.name,
                   startYear: s.startYear ?? undefined,
                   endYear: s.endYear ?? undefined,
+                  eraId: s.eraId?.toString(),
+                  summary: s.description ?? undefined, // Convert null to undefined
                 }))}
                 markers={active.markers.map((m) => ({
                   id: m.id.toString(),
                   name: m.name,
                   year: m.year ?? undefined,
+                  description: m.description ?? undefined,
+                  type: 'political' as const, // Default type, could be enhanced later
                 }))}
-                height={420}
-                pad={60}
+                onEraClick={(era: any) => {
+                  // Navigate to era details - you can customize this URL
+                  window.location.href = `/worldbuilder/era/details?eraId=${era.id}&worldId=${active.id}`;
+                }}
+                onSettingClick={(setting: any) => {
+                  // Navigate to setting details
+                  window.location.href = `/worldbuilder/settings/settingdetails?settingId=${setting.id}&worldId=${active.id}`;
+                }}
+                onMarkerClick={(marker: any) => {
+                  // Could open marker edit dialog or show details
+                  console.log('Edit marker:', marker);
+                }}
+                viewMode={timelineViewMode}
+                onViewModeChange={setTimelineViewMode}
+                showControls={true}
               />
             </div>
           </div>

@@ -117,6 +117,12 @@ export interface MonthData {
   days: number | null;
 }
 
+export interface SeasonBandData {
+  name: string;
+  startDay: number | null;
+  endDay: number | null;
+}
+
 // Time & Calendar data interface
 export interface TimeCalendarData {
   dayHours: number | null;
@@ -124,6 +130,7 @@ export interface TimeCalendarData {
   months: MonthData[];
   weekdays: string[];
   leapRule: string;
+  seasonBands: SeasonBandData[];
 }
 
 interface TimeCalendarFormProps {
@@ -198,7 +205,8 @@ export default function TimeCalendarForm({ data, onUpdate }: TimeCalendarFormPro
   const safeData = {
     ...data,
     months: data.months || [],
-    weekdays: data.weekdays || []
+    weekdays: data.weekdays || [],
+    seasonBands: data.seasonBands || []
   };
 
   const addMonth = () => {
@@ -249,6 +257,23 @@ export default function TimeCalendarForm({ data, onUpdate }: TimeCalendarFormPro
     const [moved] = newWeekdays.splice(fromIndex, 1);
     newWeekdays.splice(toIndex, 0, moved);
     onUpdate({ weekdays: newWeekdays });
+  };
+
+  const addSeasonBand = () => {
+    const newBands = [...safeData.seasonBands, { name: "", startDay: null, endDay: null }];
+    onUpdate({ seasonBands: newBands });
+  };
+
+  const removeSeasonBand = (index: number) => {
+    const newBands = safeData.seasonBands.filter((_, i) => i !== index);
+    onUpdate({ seasonBands: newBands });
+  };
+
+  const updateSeasonBand = (index: number, updates: Partial<SeasonBandData>) => {
+    const newBands = safeData.seasonBands.map((band, i) => 
+      i === index ? { ...band, ...updates } : band
+    );
+    onUpdate({ seasonBands: newBands });
   };
 
   return (
@@ -405,6 +430,90 @@ export default function TimeCalendarForm({ data, onUpdate }: TimeCalendarFormPro
           onCommit={(value) => onUpdate({ leapRule: value })}
           placeholder="e.g., Every 4 years, add an extra day to the last month..."
         />
+      </div>
+
+      {/* Season Bands */}
+      <div>
+        <div className="flex justify-between items-center mb-2">
+          <label className="block text-sm font-medium text-white">
+            Season Bands (optional, repeatable)
+          </label>
+          <button
+            type="button"
+            onClick={addSeasonBand}
+            className="px-3 py-1 bg-amber-500 text-black text-sm rounded hover:bg-amber-400"
+          >
+            Add Season
+          </button>
+        </div>
+        <p className="text-xs text-white mb-4">
+          Define the seasons in your world by day range. Useful for climate, agriculture, and narrative pacing.
+        </p>
+
+        <div className="space-y-4">
+          {safeData.seasonBands.length === 0 ? (
+            <div className="text-white text-center py-8 border-2 border-dashed border-white/20 rounded">
+              No season bands defined yet. Click "Add Season" to create one.
+            </div>
+          ) : (
+            safeData.seasonBands.map((band, index) => (
+              <div key={index} className="border border-white/20 rounded-lg p-4 bg-white/5">
+                <div className="flex justify-between items-start mb-4">
+                  <h4 className="text-sm font-medium text-white">
+                    Season {index + 1}
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={() => removeSeasonBand(index)}
+                    className="text-red-400 hover:text-red-300"
+                  >
+                    Remove
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-white mb-1">
+                      Season Name
+                    </label>
+                    <Input
+                      value={band.name}
+                      onCommit={(value) => updateSeasonBand(index, { name: value })}
+                      placeholder="e.g., Spring, Winter..."
+                      maxLength={30}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-white mb-1">
+                      Start Day (1–{safeData.yearDays || 365})
+                    </label>
+                    <NumberInput
+                      value={band.startDay}
+                      onCommit={(value) => updateSeasonBand(index, { startDay: value })}
+                      placeholder="Day"
+                      min={1}
+                      max={safeData.yearDays || 365}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-white mb-1">
+                      End Day (1–{safeData.yearDays || 365})
+                    </label>
+                    <NumberInput
+                      value={band.endDay}
+                      onCommit={(value) => updateSeasonBand(index, { endDay: value })}
+                      placeholder="Day"
+                      min={1}
+                      max={safeData.yearDays || 365}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </div>
   );

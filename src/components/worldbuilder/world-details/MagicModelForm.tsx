@@ -72,6 +72,55 @@ const Textarea = ({ value, onCommit, placeholder, maxLength }: {
   );
 };
 
+// Number input component
+const NumberInput = ({ value, onCommit, placeholder, min, max }: {
+  value: number | null;
+  onCommit: (value: number | null) => void;
+  placeholder?: string;
+  min?: number;
+  max?: number;
+}) => {
+  const [raw, setRaw] = useState(value?.toString() || "");
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    if (/^\d*\.?\d*$/.test(newValue) || newValue === "") {
+      setRaw(newValue);
+    }
+  };
+
+  const handleBlur = () => {
+    const trimmed = raw.trim();
+    if (trimmed === "") {
+      onCommit(null);
+      setRaw("");
+      return;
+    }
+
+    const num = Number(trimmed);
+    if (Number.isNaN(num)) {
+      onCommit(null);
+      setRaw("");
+      return;
+    }
+
+    const clampedValue = Math.max(min ?? -Infinity, Math.min(max ?? Infinity, num));
+    onCommit(clampedValue);
+    setRaw(clampedValue.toString());
+  };
+
+  return (
+    <input
+      type="text"
+      value={raw}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      placeholder={placeholder}
+      className="w-full rounded-lg bg-white/10 text-white placeholder:text-white border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400"
+    />
+  );
+};
+
 // Select component
 const Select = ({ value, onCommit, options }: {
   value: string;
@@ -125,6 +174,11 @@ const CheckboxList = ({ values, onCommit, options }: {
 };
 
 // Magic Model data interface
+export interface CorruptionThresholdData {
+  percentage: number | null;
+  effect: string;
+}
+
 export interface MagicModelData {
   magicSystems: string[];
   magicCustoms: string[];
@@ -133,6 +187,9 @@ export interface MagicModelData {
   corruptionLevel: string;
   corruptionNote: string;
   magicRarity: string;
+  corruptionThresholds: CorruptionThresholdData[];
+  corruptionRecoveryRate: string;
+  corruptionTables: string;
 }
 
 interface MagicModelFormProps {
@@ -149,7 +206,10 @@ export default function MagicModelForm({ data, onUpdate }: MagicModelFormProps) 
     ...data,
     magicSystems: data.magicSystems || [],
     magicCustoms: data.magicCustoms || [],
-    unbreakableRules: data.unbreakableRules || []
+    unbreakableRules: data.unbreakableRules || [],
+    corruptionThresholds: data.corruptionThresholds || [],
+    corruptionRecoveryRate: data.corruptionRecoveryRate || "",
+    corruptionTables: data.corruptionTables || ""
   };
 
   const magicSystemOptions = [
@@ -199,6 +259,23 @@ export default function MagicModelForm({ data, onUpdate }: MagicModelFormProps) 
     onUpdate({ 
       magicCustoms: safeData.magicCustoms.filter((_, i) => i !== index) 
     });
+  };
+
+  const addCorruptionThreshold = () => {
+    const newThresholds = [...safeData.corruptionThresholds, { percentage: null, effect: "" }];
+    onUpdate({ corruptionThresholds: newThresholds });
+  };
+
+  const removeCorruptionThreshold = (index: number) => {
+    const newThresholds = safeData.corruptionThresholds.filter((_, i) => i !== index);
+    onUpdate({ corruptionThresholds: newThresholds });
+  };
+
+  const updateCorruptionThreshold = (index: number, updates: Partial<CorruptionThresholdData>) => {
+    const newThresholds = safeData.corruptionThresholds.map((threshold, i) => 
+      i === index ? { ...threshold, ...updates } : threshold
+    );
+    onUpdate({ corruptionThresholds: newThresholds });
   };
 
   return (
@@ -370,6 +447,115 @@ export default function MagicModelForm({ data, onUpdate }: MagicModelFormProps) 
 
           <div className="text-sm text-white">
             {safeData.unbreakableRules.length}/10 rules
+          </div>
+        </div>
+
+        {/* Corruption Percentile Tracking */}
+        <div className="border-t border-white/20 pt-6">
+          <h3 className="text-lg font-semibold text-white mb-4">
+            Corruption Percentile System (0-100 Track)
+          </h3>
+          <p className="text-xs text-white mb-4">
+            Define how corruption accumulates and what happens at different thresholds.
+          </p>
+
+          {/* Corruption Thresholds */}
+          <div className="mb-4">
+            <div className="flex justify-between items-center mb-2">
+              <label className="block text-sm font-medium text-white">
+                Corruption Thresholds (% → Effect)
+              </label>
+              <button
+                type="button"
+                onClick={addCorruptionThreshold}
+                className="px-3 py-1 bg-amber-500 text-black text-sm rounded hover:bg-amber-400"
+              >
+                Add Threshold
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {safeData.corruptionThresholds.length === 0 ? (
+                <div className="text-white text-center py-6 border-2 border-dashed border-white/20 rounded">
+                  No thresholds defined. Click "Add Threshold" to create one.
+                </div>
+              ) : (
+                safeData.corruptionThresholds.map((threshold, index) => (
+                  <div key={index} className="border border-white/20 rounded-lg p-3 bg-white/5">
+                    <div className="flex justify-between items-start mb-3">
+                      <h4 className="text-sm font-medium text-white">
+                        Threshold {index + 1}
+                      </h4>
+                      <button
+                        type="button"
+                        onClick={() => removeCorruptionThreshold(index)}
+                        className="text-red-400 hover:text-red-300 text-sm"
+                      >
+                        Remove
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-white mb-1">
+                          Percentage (0-100)
+                        </label>
+                        <NumberInput
+                          value={threshold.percentage}
+                          onCommit={(value) => updateCorruptionThreshold(index, { percentage: value })}
+                          placeholder="e.g., 25, 50, 75..."
+                          min={0}
+                          max={100}
+                        />
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className="block text-xs font-medium text-white mb-1">
+                          Effect at this Threshold
+                        </label>
+                        <Input
+                          value={threshold.effect}
+                          onCommit={(value) => updateCorruptionThreshold(index, { effect: value })}
+                          placeholder="What happens at this corruption level..."
+                          maxLength={200}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Recovery Rate */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-white mb-2">
+              Corruption Recovery Rate
+            </label>
+            <p className="text-xs text-white mb-2">
+              How does corruption reduce over time? (e.g., "1% per day of rest", "Requires ritual cleansing", "Permanent")
+            </p>
+            <Input
+              value={safeData.corruptionRecoveryRate}
+              onCommit={(value) => onUpdate({ corruptionRecoveryRate: value })}
+              placeholder="Describe recovery mechanics..."
+              maxLength={150}
+            />
+          </div>
+
+          {/* Corruption Tables */}
+          <div>
+            <label className="block text-sm font-medium text-white mb-2">
+              Corruption Effect Tables (optional)
+            </label>
+            <p className="text-xs text-white mb-2">
+              Reference to tables, mutations, side effects, or random corruption manifestations.
+            </p>
+            <Textarea
+              value={safeData.corruptionTables}
+              onCommit={(value) => onUpdate({ corruptionTables: value })}
+              placeholder="Describe corruption tables or reference materials..."
+            />
           </div>
         </div>
       </div>

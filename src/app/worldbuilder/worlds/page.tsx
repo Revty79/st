@@ -7,7 +7,6 @@ import { TimelineV2 } from "../../../components/TimelineV2";
 import WorldBuilderNavigation from "@/components/worldbuilder/WorldBuilderNavigation";
 import NewWorldForm from "@/components/worldbuilder/NewWorldForm";
 import EditWorldForm from "@/components/worldbuilder/EditWorldForm";
-import EraForm from "@/components/worldbuilder/EraForm";
 import MarkerForm from "@/components/worldbuilder/MarkerForm";
 import SettingForm from "@/components/worldbuilder/SettingForm";
 
@@ -299,7 +298,7 @@ export default function WorldsPage() {
     endYear: number | null;
     color?: string;
   }) {
-    if (!active) return;
+    if (!active) return null;
     try {
       const updated = await apiPost<ApiWorld>({
         op: "createEra",
@@ -310,10 +309,14 @@ export default function WorldsPage() {
         endYear: patch.endYear,
         color: patch.color || "#8b5cf6",
       });
-      upsertWorldInList(mapWorld(updated));
+      const mapped = mapWorld(updated);
+      upsertWorldInList(mapped);
       setShowNewEra(false);
+      // Return the newly created era (last one in the list)
+      return mapped.eras[mapped.eras.length - 1];
     } catch (e: any) {
       alert(e?.message || "Create era failed");
+      return null;
     }
   }
 
@@ -575,14 +578,52 @@ export default function WorldsPage() {
           updateMarker={updateMarker}
         />
 
-        {/* Add Era form (uses parent toggle) */}
+        {/* Add Era - now redirects to details page */}
         {showNewEra && (
-          <EraForm
-            onCancel={() => setShowNewEra(false)}
-            onCreate={(name, desc, start, end, color) =>
-              createEra({ name, description: desc, startYear: start, endYear: end, color })
-            }
-          />
+          <div className="rounded-xl border border-white/10 bg-black/30 p-4 mb-4">
+            <div className="text-sm font-semibold text-zinc-100 mb-4">Create New Era</div>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              const name = formData.get('name') as string;
+              if (name && selectedWorldId) {
+                const newEra = await createEra({ 
+                  name, 
+                  description: "", 
+                  startYear: null, 
+                  endYear: null, 
+                  color: "#8b5cf6" 
+                });
+                if (newEra) {
+                  // Redirect to era details page
+                  window.location.href = `/worldbuilder/worlds/eradetails?worldId=${selectedWorldId}&eraId=${newEra.id}`;
+                }
+              }
+            }}>
+              <input
+                type="text"
+                name="name"
+                placeholder="Era name (e.g., Age of Discovery)"
+                required
+                className="w-full rounded-lg bg-white/10 text-white placeholder:text-white/50 border border-white/20 px-3 py-2 mb-4"
+              />
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-amber-500 text-black rounded-lg hover:bg-amber-400 font-medium"
+                >
+                  Create & Configure
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowNewEra(false)}
+                  className="px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
         )}
 
         {/* Add Marker form (uses parent toggle) */}

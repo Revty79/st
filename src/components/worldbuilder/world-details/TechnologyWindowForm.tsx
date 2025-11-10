@@ -142,6 +142,12 @@ export interface TechnologyCategoryData {
   notes: string;
 }
 
+export interface TechCardData {
+  name: string;
+  status: 'on' | 'off' | 'banned';
+  description: string;
+}
+
 export interface TechnologyWindowData {
   overallLevel: string;
   availableCategories: string[];
@@ -151,6 +157,9 @@ export interface TechnologyWindowData {
   advancementMechanism: string;
   magicTechInteraction: string;
   notes: string;
+  techCards: TechCardData[];
+  customTechCards: TechCardData[];
+  techBanList: string[];
 }
 
 interface TechnologyWindowFormProps {
@@ -531,6 +540,222 @@ export default function TechnologyWindowForm({ data, onUpdate }: TechnologyWindo
             maxLength={800}
             className="min-h-[100px]"
           />
+        </div>
+
+        {/* Tech Cards (Toggle System) */}
+        <div className="mt-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-medium text-white">Tech Cards</h3>
+              <p className="text-xs text-white/70 mt-1">
+                Toggle specific technologies: On (available), Off (not yet), or Banned (forbidden)
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                const newCards = [...(data.techCards || []), {
+                  name: "",
+                  status: 'on' as const,
+                  description: ""
+                }];
+                onUpdate({ techCards: newCards });
+              }}
+              className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors text-sm"
+            >
+              + Add Tech Card
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {(data.techCards || []).map((card, index) => (
+              <div key={index} className="p-3 border border-white/20 rounded-lg bg-white/5">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-2">
+                  <div>
+                    <label className="block text-xs font-medium text-white mb-1">Tech Name</label>
+                    <Input
+                      value={card.name}
+                      onCommit={(value) => {
+                        const newCards = [...(data.techCards || [])];
+                        newCards[index] = { ...newCards[index], name: value };
+                        onUpdate({ techCards: newCards });
+                      }}
+                      placeholder="e.g., Printing Press"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-white mb-1">Status</label>
+                    <Select
+                      value={card.status}
+                      onCommit={(value) => {
+                        const newCards = [...(data.techCards || [])];
+                        newCards[index] = { ...newCards[index], status: value as 'on' | 'off' | 'banned' };
+                        onUpdate({ techCards: newCards });
+                      }}
+                      options={[
+                        { value: 'on', label: 'On (Available)' },
+                        { value: 'off', label: 'Off (Not Yet)' },
+                        { value: 'banned', label: 'Banned (Forbidden)' }
+                      ]}
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <button
+                      onClick={() => {
+                        const newCards = (data.techCards || []).filter((_, i) => i !== index);
+                        onUpdate({ techCards: newCards });
+                      }}
+                      className="text-red-400 hover:text-red-300 text-sm"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-white mb-1">
+                    Description & Implications
+                  </label>
+                  <Input
+                    value={card.description}
+                    onCommit={(value) => {
+                      const newCards = [...(data.techCards || [])];
+                      newCards[index] = { ...newCards[index], description: value };
+                      onUpdate({ techCards: newCards });
+                    }}
+                    placeholder="e.g., Books flow; literacy rises; faster rumor spread"
+                    maxLength={200}
+                  />
+                </div>
+              </div>
+            ))}
+            {(data.techCards || []).length === 0 && (
+              <div className="text-center py-4 text-white/60 text-sm">
+                No tech cards defined. Click "Add Tech Card" to begin.
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Custom Tech Cards */}
+        <div className="mt-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-medium text-white">Custom Tech Cards</h3>
+              <p className="text-xs text-white/70 mt-1">
+                Your own invented technologies unique to this world
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                const newCards = [...(data.customTechCards || []), {
+                  name: "",
+                  status: 'on' as const,
+                  description: ""
+                }];
+                onUpdate({ customTechCards: newCards });
+              }}
+              className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors text-sm"
+            >
+              + Add Custom Card
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {(data.customTechCards || []).map((card, index) => (
+              <div key={index} className="p-3 border border-white/20 rounded-lg bg-white/5">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-2">
+                  <div>
+                    <label className="block text-xs font-medium text-white mb-1">Tech Name</label>
+                    <Input
+                      value={card.name}
+                      onCommit={(value) => {
+                        const newCards = [...(data.customTechCards || [])];
+                        newCards[index] = { ...newCards[index], name: value };
+                        onUpdate({ customTechCards: newCards });
+                      }}
+                      placeholder="e.g., Tide-Engines"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-white mb-1">Status</label>
+                    <Select
+                      value={card.status}
+                      onCommit={(value) => {
+                        const newCards = [...(data.customTechCards || [])];
+                        newCards[index] = { ...newCards[index], status: value as 'on' | 'off' | 'banned' };
+                        onUpdate({ customTechCards: newCards });
+                      }}
+                      options={[
+                        { value: 'on', label: 'On (Available)' },
+                        { value: 'off', label: 'Off (Not Yet)' },
+                        { value: 'banned', label: 'Banned (Forbidden)' }
+                      ]}
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <button
+                      onClick={() => {
+                        const newCards = (data.customTechCards || []).filter((_, i) => i !== index);
+                        onUpdate({ customTechCards: newCards });
+                      }}
+                      className="text-red-400 hover:text-red-300 text-sm"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-white mb-1">
+                    Description & Implications
+                  </label>
+                  <Input
+                    value={card.description}
+                    onCommit={(value) => {
+                      const newCards = [...(data.customTechCards || [])];
+                      newCards[index] = { ...newCards[index], description: value };
+                      onUpdate({ customTechCards: newCards });
+                    }}
+                    placeholder="e.g., Mana-driven mills; urban power grid"
+                    maxLength={200}
+                  />
+                </div>
+              </div>
+            ))}
+            {(data.customTechCards || []).length === 0 && (
+              <div className="text-center py-4 text-white/60 text-sm">
+                No custom tech cards defined. Click "Add Custom Card" to begin.
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Tech Ban List */}
+        <div className="mt-6">
+          <div className="mb-4">
+            <h3 className="text-lg font-medium text-white">Tech Ban List</h3>
+            <p className="text-xs text-white/70 mt-1">
+              Technologies that absolutely do not exist in this world (comma-separated)
+            </p>
+          </div>
+          <Input
+            value={(data.techBanList || []).join(", ")}
+            onCommit={(value) => {
+              const banList = value.split(",").map(item => item.trim()).filter(item => item);
+              onUpdate({ techBanList: banList });
+            }}
+            placeholder="e.g., Time Travel, FTL, True AI"
+          />
+          {(data.techBanList || []).length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {data.techBanList.map((item, index) => (
+                <span
+                  key={index}
+                  className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-red-900/30 text-red-300 border border-red-500/30"
+                >
+                  🚫 {item}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

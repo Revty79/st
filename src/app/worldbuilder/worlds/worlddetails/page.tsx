@@ -4,17 +4,18 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-// Import form components
+// Import form components (in fill order)
 import BasicInfoForm, { BasicInfoData } from "@/components/worldbuilder/world-details/BasicInfoForm";
-import AstralBodiesForm, { AstralBodiesData } from "@/components/worldbuilder/world-details/AstralBodiesForm";
 import TimeCalendarForm, { TimeCalendarData } from "@/components/worldbuilder/world-details/TimeCalendarForm";
+import AstralBodiesForm, { AstralBodiesData } from "@/components/worldbuilder/world-details/AstralBodiesForm";
 import PlanetProfileForm, { PlanetProfileData } from "@/components/worldbuilder/world-details/PlanetProfileForm";
 import MagicModelForm, { MagicModelData } from "@/components/worldbuilder/world-details/MagicModelForm";
-import GeographyFoundationForm, { GeographyFoundationData } from "@/components/worldbuilder/world-details/GeographyFoundationForm";
 import TechnologyWindowForm, { TechnologyWindowData } from "@/components/worldbuilder/world-details/TechnologyWindowForm";
 import ToneCanonForm, { ToneCanonData } from "@/components/worldbuilder/world-details/ToneCanonForm";
 import CosmologyRealmsForm, { CosmologyRealmsData } from "@/components/worldbuilder/world-details/CosmologyRealmsForm";
 import MasterCatalogsForm, { MasterCatalogsData } from "@/components/worldbuilder/world-details/MasterCatalogsForm";
+import CurrencyAnchorForm, { CurrencyAnchorData } from "@/components/worldbuilder/world-details/CurrencyAnchorForm";
+import WorldTimelineForm, { WorldTimelineData } from "@/components/worldbuilder/world-details/WorldTimelineForm";
 
 // Loading component
 const Loading = () => (
@@ -38,17 +39,19 @@ const NavigationTabs = ({ currentSection, onSectionChange }: {
   currentSection: string;
   onSectionChange: (section: string) => void;
 }) => {
+  // Order matches the "Fill order (one smooth pass)" from specification
   const sections = [
     { id: "basic", label: "Basic Info", icon: "📋" },
-    { id: "astral", label: "Astral Bodies", icon: "☀️" },
     { id: "time", label: "Time & Calendar", icon: "📅" },
-    { id: "planet", label: "Planet Profile", icon: "🌍" },
-    { id: "geography", label: "Geography", icon: "🏔️" },
+    { id: "astral", label: "Astral Bodies", icon: "☀️" },
+    { id: "planet", label: "Planet Profile", icon: "�" },
     { id: "magic", label: "Magic Model", icon: "✨" },
     { id: "technology", label: "Technology", icon: "⚙️" },
     { id: "tone", label: "Tone & Canon", icon: "📜" },
     { id: "cosmology", label: "Cosmology", icon: "🌌" },
-    { id: "catalogs", label: "Master Catalogs", icon: "📚" }
+    { id: "catalogs", label: "Master Index", icon: "📚" },
+    { id: "currency", label: "Currency Anchor", icon: "💰" },
+    { id: "timeline", label: "World Timeline", icon: "⏳" }
   ];
 
   return (
@@ -104,15 +107,16 @@ const SaveIndicator = ({ isSaving, lastSaved }: {
 // Main data interface combining all form data
 interface WorldDetailsData {
   basic: BasicInfoData;
-  astral: AstralBodiesData;
   time: TimeCalendarData;
+  astral: AstralBodiesData;
   planet: PlanetProfileData;
   magic: MagicModelData;
-  geography: GeographyFoundationData;
   technology: TechnologyWindowData;
   tone: ToneCanonData;
   cosmology: CosmologyRealmsData;
   catalogs: MasterCatalogsData;
+  currency: CurrencyAnchorData;
+  timeline: WorldTimelineData;
 }
 
 export default function WorldDetailsPage() {
@@ -127,9 +131,9 @@ export default function WorldDetailsPage() {
   const [worldName, setWorldName] = useState("");
 
   const [data, setData] = useState<WorldDetailsData>({
-    basic: { name: "", pitch: "", tags: [] },
-    astral: { suns: [], moons: [] },
-    time: { dayHours: null, yearDays: null, months: [], weekdays: [], leapRule: "" },
+    basic: { name: "", pitch: "", tags: [], styleGuardrails: [] },
+    time: { dayHours: null, yearDays: null, months: [], weekdays: [], leapRule: "", seasonBands: [] },
+    astral: { suns: [], moons: [], constellations: [], cosmicEvents: [] },
     planet: { 
       planetType: "Terrestrial", 
       planetTypeNote: "", 
@@ -137,7 +141,8 @@ export default function WorldDetailsPage() {
       gravityVsEarth: null, 
       waterPct: null, 
       climateBands: [], 
-      tectonics: "Medium" 
+      tectonics: "Medium",
+      continents: []
     },
     magic: { 
       magicSystems: [], 
@@ -146,14 +151,10 @@ export default function WorldDetailsPage() {
       unbreakableRules: [], 
       corruptionLevel: "Moderate", 
       corruptionNote: "", 
-      magicRarity: "Uncommon" 
-    },
-    geography: {
-      worldShape: "",
-      worldSize: "",
-      continents: [],
-      biomes: [],
-      notes: ""
+      magicRarity: "Uncommon",
+      corruptionThresholds: [],
+      corruptionRecoveryRate: "",
+      corruptionTables: ""
     },
     technology: {
       overallLevel: "",
@@ -163,7 +164,10 @@ export default function WorldDetailsPage() {
       restrictedTechnologies: [],
       advancementMechanism: "",
       magicTechInteraction: "",
-      notes: ""
+      notes: "",
+      techCards: [],
+      customTechCards: [],
+      techBanList: []
     },
     tone: {
       toneFlags: [],
@@ -176,29 +180,20 @@ export default function WorldDetailsPage() {
       conflictTypes: [],
       moodAtmosphere: "",
       playerExpectations: "",
-      gmGuidance: ""
+      gmGuidance: "",
+      contentSeverityMatrix: [],
+      unchangingTruths: [],
+      worldRating: ""
     },
     cosmology: {
-      cosmicStructure: "",
-      planesOfExistence: [],
-      dimensionalRules: [],
-      deities: [],
-      afterlifeSystem: "",
-      afterlifeRealms: [],
-      planarTravel: "",
-      cosmicThreats: "",
-      universalLaws: "",
-      notes: ""
+      realms: []
     },
-    catalogs: {
-      languageFamilies: [],
-      organizations: [],
-      selectedRaceIds: [],
-      selectedCreatureIds: [],
-      organizationTypes: [],
-      itemCategories: [],
-      rarityLevels: [],
-      notes: ""
+    catalogs: {},
+    currency: {
+      creditValue: null
+    },
+    timeline: {
+      vertebrae: []
     }
   });
 
@@ -243,18 +238,22 @@ export default function WorldDetailsPage() {
           basic: {
             name: worldResult.data.name,
             pitch: details.pitch || "",
-            tags: details.tags || []
-          },
-          astral: {
-            suns: details.suns || [],
-            moons: details.moons || []
+            tags: details.tags || [],
+            styleGuardrails: details.styleGuardrails || []
           },
           time: {
             dayHours: details.day_hours,
             yearDays: details.year_days,
             months: details.months || [],
             weekdays: details.weekdays || [],
-            leapRule: details.leap_rule || ""
+            leapRule: details.leap_rule || "",
+            seasonBands: details.seasonBands || []
+          },
+          astral: {
+            suns: details.suns || [],
+            moons: details.moons || [],
+            constellations: details.constellations || [],
+            cosmicEvents: details.cosmicEvents || []
           },
           planet: {
             planetType: details.planet_type || "Terrestrial",
@@ -263,7 +262,8 @@ export default function WorldDetailsPage() {
             gravityVsEarth: details.gravity_vs_earth,
             waterPct: details.water_pct,
             climateBands: details.climates || [],
-            tectonics: details.tectonics || "Medium"
+            tectonics: details.tectonics || "Medium",
+            continents: details.continents || []
           },
           magic: {
             magicSystems: details.magicSystems || [],
@@ -272,14 +272,10 @@ export default function WorldDetailsPage() {
             unbreakableRules: details.unbreakables || [],
             corruptionLevel: details.corruption_level || "Moderate",
             corruptionNote: details.corruption_note || "",
-            magicRarity: details.magic_rarity || "Uncommon"
-          },
-          geography: {
-            worldShape: details.geography_world_shape || "",
-            worldSize: details.geography_world_size || "",
-            continents: details.continents || [],
-            biomes: details.geographyBiomes || [],
-            notes: details.geography_notes || ""
+            magicRarity: details.magic_rarity || "Uncommon",
+            corruptionThresholds: details.corruptionThresholds || [],
+            corruptionRecoveryRate: details.corruptionRecoveryRate || "",
+            corruptionTables: details.corruptionTables || ""
           },
           technology: {
             overallLevel: details.tech_from || "",
@@ -294,7 +290,10 @@ export default function WorldDetailsPage() {
             restrictedTechnologies: details.technologyRestrictions || [],
             advancementMechanism: details.technology_advancement || "",
             magicTechInteraction: details.technology_magic_interaction || "",
-            notes: details.technology_notes || ""
+            notes: details.technology_notes || "",
+            techCards: details.techCards || [],
+            customTechCards: details.customTechCards || [],
+            techBanList: details.techBanList || []
           },
           tone: {
             toneFlags: details.toneFlags || [],
@@ -307,73 +306,26 @@ export default function WorldDetailsPage() {
             conflictTypes: details.tone_conflict_types || [],
             moodAtmosphere: details.tone_mood || "",
             playerExpectations: details.tone_expectations || "",
-            gmGuidance: details.tone_guidance || ""
+            gmGuidance: details.tone_guidance || "",
+            contentSeverityMatrix: details.contentSeverityMatrix || [],
+            unchangingTruths: details.unchangingTruths || [],
+            worldRating: details.worldRating || ""
           },
           cosmology: {
-            cosmicStructure: details.cosmology_structure || "",
-            planesOfExistence: (details.cosmologyPlanes || []).map((plane: any) => ({
-              name: plane.name || "",
-              type: plane.type || "",
-              description: plane.description || "",
-              inhabitants: plane.inhabitants || "",
-              accessMethod: plane.accessMethod || "",
-              dangers: plane.dangers || "",
-              nature: plane.nature || ""
-            })),
-            dimensionalRules: (details.cosmologyDimensionalRules || []).map((rule: any) => ({
-              rule: rule.rule || rule,
-              scope: rule.scope || "",
-              effects: rule.effects || "",
-              exceptions: rule.exceptions || ""
-            })),
-            deities: (details.cosmologyDeities || []).map((deity: any) => ({
-              name: deity.name || "",
-              domain: deity.domain || "",
-              stance: deity.stance || "",
-              power: deity.power || "",
-              description: deity.description || "",
-              followers: deity.followers || ""
-            })),
-            afterlifeSystem: details.cosmology_afterlife_system || "",
-            afterlifeRealms: (details.cosmologyAfterlifeRealms || []).map((realm: any) => ({
-              name: realm.name || "",
-              criteria: realm.criteria || "",
-              description: realm.description || "",
-              duration: realm.duration || ""
-            })),
-            planarTravel: details.cosmology_planar_travel || "",
-            cosmicThreats: details.cosmology_cosmic_threats || "",
-            universalLaws: details.cosmology_universal_laws || "",
-            notes: details.cosmology_notes || ""
+            realms: details.cosmologyRealms || []
           },
-          catalogs: {
-            languageFamilies: (details.catalogLanguageFamilies || []).map((lang: any) => ({
-              name: lang.name || "",
-              description: lang.description || "",
-              languages: Array.isArray(lang.languages) ? lang.languages : (typeof lang.languages === 'string' ? JSON.parse(lang.languages || '[]') : []),
-              writingSystem: lang.writingSystem || "",
-              speakers: lang.speakers || "",
-              status: lang.status || ""
-            })),
-            organizations: (details.catalogOrganizations || []).map((org: any) => ({
-              name: org.name || "",
-              type: org.type || "",
-              scope: org.scope || "",
-              viewpoint: org.viewpoint || "",
-              goals: org.goals || "",
-              structure: org.structure || "",
-              membership: org.membership || "",
-              resources: org.resources || "",
-              reputation: org.reputation || "",
-              rivals: Array.isArray(org.rivals) ? org.rivals : (typeof org.rivals === 'string' ? JSON.parse(org.rivals || '[]') : []),
-              allies: Array.isArray(org.allies) ? org.allies : (typeof org.allies === 'string' ? JSON.parse(org.allies || '[]') : [])
-            })),
-            selectedRaceIds: (details.races || []).map((race: any) => race.id),
-            selectedCreatureIds: (details.creatures || []).map((creature: any) => creature.id),
-            organizationTypes: details.catalogOrganizationTypes || [],
-            itemCategories: details.catalogItemCategories || [],
-            rarityLevels: details.catalogRarityLevels || [],
-            notes: details.catalog_notes || ""
+          catalogs: {},
+          currency: {
+            creditValue: details.creditValue ?? null
+          },
+          timeline: {
+            vertebrae: (details.vertebrae || []).map((v: any) => ({
+              name: v.name || "",
+              startYear: v.startYear || "",
+              endYear: v.endYear || "",
+              isPivot: v.isPivot || false,
+              description: v.description || ""
+            }))
           }
         });
 
@@ -476,58 +428,6 @@ export default function WorldDetailsPage() {
         updateData.corruptionNote = sectionData.corruptionNote;
         updateData.magicRarity = sectionData.magicRarity;
         // TODO: Handle magic systems and unbreakable rules
-      } else if (section === "geography") {
-        updateData.op = "updateBasicInfo";
-        updateData.geographyNotes = sectionData.notes;
-        
-        // Handle geography data updates separately
-        if (sectionData.regions && sectionData.regions.length > 0) {
-          await fetch("/api/world-details", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              op: "updateGeographyRegions",
-              worldId: Number(worldId),
-              regions: sectionData.regions
-            })
-          });
-        }
-        
-        if (sectionData.biomes && sectionData.biomes.length > 0) {
-          await fetch("/api/world-details", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              op: "updateGeographyBiomes", 
-              worldId: Number(worldId),
-              biomes: sectionData.biomes
-            })
-          });
-        }
-        
-        if (sectionData.landmarks && sectionData.landmarks.length > 0) {
-          await fetch("/api/world-details", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              op: "updateGeographyLandmarks",
-              worldId: Number(worldId),
-              landmarks: sectionData.landmarks
-            })
-          });
-        }
-        
-        if (sectionData.tradeRoutes && sectionData.tradeRoutes.length > 0) {
-          await fetch("/api/world-details", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              op: "updateGeographyTradeRoutes",
-              worldId: Number(worldId),
-              tradeRoutes: sectionData.tradeRoutes
-            })
-          });
-        }
       } else if (section === "technology") {
         updateData.op = "updateBasicInfo";
         updateData.technologyNotes = sectionData.notes;
@@ -763,12 +663,6 @@ export default function WorldDetailsPage() {
     saveChanges(newData, "magic");
   };
 
-  const updateGeographyFoundation = (updates: Partial<GeographyFoundationData>) => {
-    const newData = { ...data.geography, ...updates };
-    setData(prev => ({ ...prev, geography: newData }));
-    saveChanges(newData, "geography");
-  };
-
   const updateTechnologyWindow = (updates: Partial<TechnologyWindowData>) => {
     const newData = { ...data.technology, ...updates };
     setData(prev => ({ ...prev, technology: newData }));
@@ -791,6 +685,18 @@ export default function WorldDetailsPage() {
     const newData = { ...data.catalogs, ...updates };
     setData(prev => ({ ...prev, catalogs: newData }));
     saveChanges(newData, "catalogs");
+  };
+
+  const updateCurrency = (updates: Partial<CurrencyAnchorData>) => {
+    const newData = { ...data.currency, ...updates };
+    setData(prev => ({ ...prev, currency: newData }));
+    saveChanges(newData, "currency");
+  };
+
+  const updateTimeline = (updates: Partial<WorldTimelineData>) => {
+    const newData = { ...data.timeline, ...updates };
+    setData(prev => ({ ...prev, timeline: newData }));
+    saveChanges(newData, "timeline");
   };
 
   if (loading) return <Loading />;
@@ -836,20 +742,17 @@ export default function WorldDetailsPage() {
         {currentSection === "basic" && (
           <BasicInfoForm data={data.basic} onUpdate={updateBasicInfo} />
         )}
-        {currentSection === "astral" && (
-          <AstralBodiesForm data={data.astral} onUpdate={updateAstralBodies} />
-        )}
         {currentSection === "time" && (
           <TimeCalendarForm data={data.time} onUpdate={updateTimeCalendar} />
+        )}
+        {currentSection === "astral" && (
+          <AstralBodiesForm data={data.astral} onUpdate={updateAstralBodies} />
         )}
         {currentSection === "planet" && (
           <PlanetProfileForm data={data.planet} onUpdate={updatePlanetProfile} />
         )}
         {currentSection === "magic" && (
           <MagicModelForm data={data.magic} onUpdate={updateMagicModel} />
-        )}
-        {currentSection === "geography" && (
-          <GeographyFoundationForm data={data.geography} onUpdate={updateGeographyFoundation} />
         )}
         {currentSection === "technology" && (
           <TechnologyWindowForm data={data.technology} onUpdate={updateTechnologyWindow} />
@@ -862,6 +765,12 @@ export default function WorldDetailsPage() {
         )}
         {currentSection === "catalogs" && (
           <MasterCatalogsForm data={data.catalogs} onUpdate={updateMasterCatalogs} />
+        )}
+        {currentSection === "currency" && (
+          <CurrencyAnchorForm data={data.currency} onUpdate={updateCurrency} />
+        )}
+        {currentSection === "timeline" && (
+          <WorldTimelineForm data={data.timeline} onUpdate={updateTimeline} />
         )}
       </div>
     </div>

@@ -173,12 +173,108 @@ export interface BasicInfoData {
   name: string;
   pitch: string;
   tags: string[];
+  styleGuardrails: string[];
 }
 
 interface BasicInfoFormProps {
   data: BasicInfoData;
   onUpdate: (data: Partial<BasicInfoData>) => void;
 }
+
+const GuardrailInput = ({ guardrails, onCommit }: {
+  guardrails: string[];
+  onCommit: (guardrails: string[]) => void;
+}) => {
+  const [inputValue, setInputValue] = useState("");
+  
+  const predefinedGuardrails = [
+    "No time travel", "No resurrection", "No mind control", "Magic has costs",
+    "Death is permanent", "No world-ending threats", "Technology is limited",
+    "Dragons are rare", "Gods don't intervene directly", "Healing is slow"
+  ];
+
+  const addGuardrail = (guardrail: string) => {
+    const trimmed = guardrail.trim();
+    if (trimmed && !guardrails.includes(trimmed) && guardrails.length < 5) {
+      onCommit([...guardrails, trimmed]);
+    }
+    setInputValue("");
+  };
+
+  const removeGuardrail = (index: number) => {
+    onCommit(guardrails.filter((_, i) => i !== index));
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addGuardrail(inputValue);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-2">
+        {guardrails.map((guardrail, index) => (
+          <span
+            key={index}
+            className="inline-flex items-center px-2 py-1 rounded-full text-sm bg-red-400/20 text-red-100 border border-red-400/30"
+          >
+            {guardrail}
+            <button
+              type="button"
+              onClick={() => removeGuardrail(index)}
+              className="ml-1 text-red-200 hover:text-white"
+            >
+              ×
+            </button>
+          </span>
+        ))}
+      </div>
+      
+      <div className="flex flex-wrap gap-2 mb-2">
+        {predefinedGuardrails
+          .filter(g => !guardrails.includes(g))
+          .slice(0, 8)
+          .map(guardrail => (
+            <button
+              key={guardrail}
+              type="button"
+              onClick={() => addGuardrail(guardrail)}
+              disabled={guardrails.length >= 5}
+              className="px-2 py-1 text-sm border border-white/20 rounded bg-white/5 text-zinc-200 hover:bg-white/10 disabled:opacity-50"
+            >
+              {guardrail}
+            </button>
+          ))}
+      </div>
+      
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyPress={handleKeyPress}
+          placeholder="Add custom guardrail..."
+          disabled={guardrails.length >= 5}
+          className="flex-1 rounded-lg bg-white/10 text-white placeholder:text-white border border-white/20 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400 disabled:bg-white/5"
+        />
+        <button
+          type="button"
+          onClick={() => addGuardrail(inputValue)}
+          disabled={!inputValue.trim() || guardrails.length >= 5}
+          className="px-4 py-2 bg-amber-500 text-black rounded hover:bg-amber-400 disabled:opacity-50"
+        >
+          Add
+        </button>
+      </div>
+      
+      <div className="text-sm text-zinc-200">
+        {guardrails.length}/5 guardrails (3–5 recommended)
+      </div>
+    </div>
+  );
+};
 
 export default function BasicInfoForm({ data, onUpdate }: BasicInfoFormProps) {
   return (
@@ -230,11 +326,25 @@ export default function BasicInfoForm({ data, onUpdate }: BasicInfoFormProps) {
             Genre / Tone Tags
           </label>
           <p className="text-xs text-white mb-2">
-            Filtering/search and expectation setting. 1–7 chips; freeform tags from controlled list + custom.
+            Filtering/search and expectation setting. 3–7 chips; freeform tags from controlled list + custom.
           </p>
           <TagInput
             tags={data.tags}
             onCommit={(tags) => onUpdate({ tags })}
+          />
+        </div>
+
+        {/* Style Guardrails */}
+        <div>
+          <label className="block text-sm font-medium text-white mb-2">
+            Style Guardrails
+          </label>
+          <p className="text-xs text-white mb-2">
+            Core boundaries that define what won't happen in your world. 3–5 clear "No X" or "X always Y" statements.
+          </p>
+          <GuardrailInput
+            guardrails={data.styleGuardrails || []}
+            onCommit={(guardrails) => onUpdate({ styleGuardrails: guardrails })}
           />
         </div>
       </div>

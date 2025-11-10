@@ -204,6 +204,12 @@ export interface NarrativeStyleData {
   examples: string;
 }
 
+export interface ContentSeverityData {
+  contentType: string;
+  level: 'allow' | 'limit' | 'ban';
+  notes: string;
+}
+
 export interface ToneCanonData {
   toneFlags: string[];
   contentRating: string;
@@ -216,6 +222,9 @@ export interface ToneCanonData {
   moodAtmosphere: string;
   playerExpectations: string;
   gmGuidance: string;
+  contentSeverityMatrix: ContentSeverityData[];
+  unchangingTruths: string[];
+  worldRating: string;
 }
 
 interface ToneCanonFormProps {
@@ -343,40 +352,6 @@ export default function ToneCanonForm({ data, onUpdate }: ToneCanonFormProps) {
             placeholder="Add custom tone tag..."
             maxTags={8}
           />
-        </div>
-
-        {/* Content Rating & Warnings */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-white mb-2">
-              Content Rating
-            </label>
-            <p className="text-xs text-white mb-2">
-              Age-appropriate content level.
-            </p>
-            <Select
-              value={data.contentRating}
-              onCommit={(value) => onUpdate({ contentRating: value })}
-              options={contentRatingOptions}
-              placeholder="Select content rating..."
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-white mb-2">
-              Content Warnings
-            </label>
-            <p className="text-xs text-white mb-2">
-              Specific content that might require warnings.
-            </p>
-            <TagInput
-              tags={data.contentWarnings}
-              onCommit={(tags) => onUpdate({ contentWarnings: tags })}
-              predefinedOptions={contentWarningOptions}
-              placeholder="Add custom warning..."
-              maxTags={10}
-            />
-          </div>
         </div>
 
         {/* Narrative Style */}
@@ -631,6 +606,171 @@ export default function ToneCanonForm({ data, onUpdate }: ToneCanonFormProps) {
             placeholder="Provide guidance for GMs on maintaining tone, handling sensitive content, narrative techniques..."
             maxLength={800}
             className="min-h-[120px]"
+          />
+        </div>
+
+        {/* Unchanging Truths (3-7) */}
+        <div className="mt-6">
+          <div className="mb-4">
+            <h3 className="text-lg font-medium text-white">Unchanging World Truths (3-7)</h3>
+            <p className="text-xs text-white/70 mt-1">
+              Lore pillars you won't contradict. Core facts that define your world.
+            </p>
+          </div>
+          <div className="space-y-2">
+            {(data.unchangingTruths || []).map((truth, index) => (
+              <div key={index} className="flex gap-2 items-center">
+                <Input
+                  value={truth}
+                  onCommit={(value) => {
+                    const newTruths = [...(data.unchangingTruths || [])];
+                    newTruths[index] = value;
+                    onUpdate({ unchangingTruths: newTruths });
+                  }}
+                  placeholder={`Truth ${index + 1}: e.g., "The Deep remembers every oath"`}
+                  maxLength={200}
+                />
+                <button
+                  onClick={() => {
+                    const newTruths = (data.unchangingTruths || []).filter((_, i) => i !== index);
+                    onUpdate({ unchangingTruths: newTruths });
+                  }}
+                  className="text-red-400 hover:text-red-300 text-sm whitespace-nowrap"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+            {(data.unchangingTruths || []).length < 7 && (
+              <button
+                onClick={() => {
+                  const newTruths = [...(data.unchangingTruths || []), ""];
+                  onUpdate({ unchangingTruths: newTruths });
+                }}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors text-sm"
+              >
+                + Add Truth ({(data.unchangingTruths || []).length}/7)
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Content Severity Matrix */}
+        <div className="mt-6">
+          <div className="mb-4">
+            <h3 className="text-lg font-medium text-white">Content & Severity Matrix</h3>
+            <p className="text-xs text-white/70 mt-1">
+              Hard ceilings on content types. Lower layers can only tighten, never exceed.
+            </p>
+          </div>
+          
+          {/* Define content types */}
+          {(() => {
+            const contentTypes = [
+              { id: 'violence', label: 'Violence' },
+              { id: 'murder', label: 'Murder/Assassination' },
+              { id: 'slavery', label: 'Slavery/Forced Labor' },
+              { id: 'religious_persecution', label: 'Religious Persecution' },
+              { id: 'torture', label: 'Torture' },
+              { id: 'sexual_content', label: 'Sexual Content' },
+              { id: 'sexual_violence', label: 'Sexual Violence' },
+              { id: 'substance_use', label: 'Substance Use' },
+              { id: 'horror', label: 'Horror (cosmic/body/psych)' },
+              { id: 'profanity', label: 'Profanity' },
+              { id: 'moral_tone', label: 'Moral Tone' }
+            ];
+
+            const severityOptions = [
+              { value: 'allow', label: 'Allow' },
+              { value: 'limit', label: 'Limit' },
+              { value: 'ban', label: 'Ban' }
+            ];
+
+            // Initialize matrix if empty
+            const matrix = data.contentSeverityMatrix || contentTypes.map(ct => ({
+              contentType: ct.id,
+              level: 'allow',
+              notes: ''
+            }));
+
+            return (
+              <div className="space-y-3">
+                {contentTypes.map((type, index) => {
+                  const entry = matrix.find(m => m.contentType === type.id) || {
+                    contentType: type.id,
+                    level: 'allow',
+                    notes: ''
+                  };
+
+                  return (
+                    <div key={type.id} className="p-3 border border-white/20 rounded-lg bg-white/5">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-white mb-1">
+                            {type.label}
+                          </label>
+                        </div>
+                        <div>
+                          <Select
+                            value={entry.level}
+                            onCommit={(value) => {
+                              const newMatrix = [...matrix];
+                              const entryIndex = newMatrix.findIndex(m => m.contentType === type.id);
+                              if (entryIndex >= 0) {
+                                newMatrix[entryIndex] = { ...newMatrix[entryIndex], level: value as 'allow' | 'limit' | 'ban' };
+                              } else {
+                                newMatrix.push({ contentType: type.id, level: value as 'allow' | 'limit' | 'ban', notes: '' });
+                              }
+                              onUpdate({ contentSeverityMatrix: newMatrix });
+                            }}
+                            options={severityOptions}
+                          />
+                        </div>
+                        <div>
+                          <Input
+                            value={entry.notes}
+                            onCommit={(value) => {
+                              const newMatrix = [...matrix];
+                              const entryIndex = newMatrix.findIndex(m => m.contentType === type.id);
+                              if (entryIndex >= 0) {
+                                newMatrix[entryIndex] = { ...newMatrix[entryIndex], notes: value };
+                              } else {
+                                newMatrix.push({ contentType: type.id, level: 'allow', notes: value });
+                              }
+                              onUpdate({ contentSeverityMatrix: newMatrix });
+                            }}
+                            placeholder="Severity note (optional)"
+                            maxLength={100}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+        </div>
+
+        {/* World Rating */}
+        <div className="mt-6">
+          <label className="block text-sm font-medium text-white mb-2">
+            World Rating
+          </label>
+          <p className="text-xs text-white mb-2">
+            Overall content rating for this world
+          </p>
+          <Select
+            value={data.worldRating}
+            onCommit={(value) => onUpdate({ worldRating: value })}
+            options={[
+              { value: 'G', label: 'G - General Audiences' },
+              { value: 'PG', label: 'PG - Parental Guidance Suggested' },
+              { value: 'PG-13', label: 'PG-13 - Parents Strongly Cautioned' },
+              { value: 'R', label: 'R - Restricted' },
+              { value: 'NC-17', label: 'NC-17 - Adults Only' }
+            ]}
+            placeholder="Select rating..."
           />
         </div>
       </div>

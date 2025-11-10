@@ -1,7 +1,7 @@
 ﻿// src/app/worldbuilder/worlds/page.tsx
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { TimelineV2 } from "../../../components/TimelineV2";
 import WorldBuilderNavigation from "@/components/worldbuilder/WorldBuilderNavigation";
@@ -435,7 +435,7 @@ export default function WorldsPage() {
           <select
             className="mb-3 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm"
             value={selectedWorldId ?? ""}
-            onChange={async (e) => {
+            onChange={async (e: React.ChangeEvent<HTMLSelectElement>) => {
               const id = e.target.value ? Number(e.target.value) : null;
               setSelectedWorldId(id);
               setShowNewWorld(false);
@@ -495,7 +495,7 @@ export default function WorldsPage() {
           {showNewWorld && (
             <NewWorldForm
               onCancel={() => setShowNewWorld(false)}
-              onCreate={(name, desc) => addWorld(name, desc)}
+              onCreate={(name: string, desc: string) => addWorld(name, desc)}
             />
           )}
 
@@ -504,7 +504,7 @@ export default function WorldsPage() {
             <EditWorldForm
               initial={{ name: active.name, description: active.description ?? "" }}
               onCancel={() => setShowEditWorld(false)}
-              onUpdate={(name, desc) => updateWorld(name, desc)}
+              onUpdate={(name: string, desc: string) => updateWorld(name, desc)}
             />
           )}
 
@@ -582,7 +582,7 @@ export default function WorldsPage() {
         {showNewEra && (
           <div className="rounded-xl border border-white/10 bg-black/30 p-4 mb-4">
             <div className="text-sm font-semibold text-zinc-100 mb-4">Create New Era</div>
-            <form onSubmit={async (e) => {
+            <form onSubmit={async (e: React.FormEvent<HTMLFormElement>) => {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
               const name = formData.get('name') as string;
@@ -609,13 +609,11 @@ export default function WorldsPage() {
               />
               <div className="flex gap-2">
                 <button
-                  type="submit"
                   className="px-4 py-2 bg-amber-500 text-black rounded-lg hover:bg-amber-400 font-medium"
                 >
                   Create & Configure
                 </button>
                 <button
-                  type="button"
                   onClick={() => setShowNewEra(false)}
                   className="px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20"
                 >
@@ -631,8 +629,8 @@ export default function WorldsPage() {
           <MarkerForm
             eras={eras}
             onCancel={() => setShowNewMarker(false)}
-            onCreate={(name, desc, year, eraId) =>
-              createMarker({ name, description: desc, year, eraId: eraId ? Number(eraId) : null })
+            onCreate={(name: string, desc: string, year: number | null, eraId: number | null) =>
+              createMarker({ name, description: desc, year, eraId })
             }
           />
         )}
@@ -674,7 +672,7 @@ export default function WorldsPage() {
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
           <div
             className="relative z-10 w-[min(1100px,90vw)] max-h-[85vh] rounded-2xl border border-white/10 bg-black/70 p-4 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-3">
               <div className="text-sm font-semibold text-zinc-200">
@@ -819,7 +817,7 @@ function OriginalTimelineSection({
                               </div>
                               <button
                                 className="rounded border border-white/15 px-2 py-0.5 hover:bg-white/10"
-                                onClick={() => alert(`(placeholder) Setting #${s.id}`)}
+                                onClick={() => window.location.href = `/worldbuilder/settings/settingdetails?settingId=${s.id}&eraId=${era.id}&worldId=${active.id}`}
                               >
                                 Details
                               </button>
@@ -849,7 +847,7 @@ function OriginalTimelineSection({
                               </div>
                               <button
                                 className="rounded border border-white/15 px-2 py-0.5 hover:bg-white/10"
-                                onClick={() => alert(`(placeholder) Event #${m.id}`)}
+                                onClick={() => window.location.href = `/worldbuilder/worlds/eventdetails?eventId=${m.id}&eraId=${m.eraId || 'unassigned'}&worldId=${active.id}`}
                               >
                                 Details
                               </button>
@@ -905,7 +903,7 @@ function OriginalTimelineSection({
                           </div>
                           <button
                             className="rounded border border-white/15 px-2 py-0.5 hover:bg-white/10"
-                            onClick={() => alert(`(placeholder) Event #${m.id}`)}
+                            onClick={() => window.location.href = `/worldbuilder/worlds/eventdetails?eventId=${m.id}&eraId=${m.eraId || 'unassigned'}&worldId=${active.id}`}
                           >
                             Details
                           </button>
@@ -991,7 +989,7 @@ function OriginalTimelineSection({
                     </button>
                     <button
                       className="rounded border border-white/15 px-2 py-1 text-xs hover:bg-white/10"
-                      onClick={() => alert(`(placeholder) Era #${era.id}`)}
+                      onClick={() => window.location.href = `/worldbuilder/worlds/eradetails?worldId=${active.id}&eraId=${era.id}`}
                     >
                       Era Details
                     </button>
@@ -1024,7 +1022,7 @@ function OriginalTimelineSection({
                         </div>
                         <button
                           className="rounded border border-white/15 px-2 py-1 text-xs hover:bg-white/10"
-                          onClick={() => alert(`(placeholder) Setting #${s.id}`)}
+                          onClick={() => window.location.href = `/worldbuilder/settings/settingdetails?settingId=${s.id}&eraId=${era.id}&worldId=${active.id}`}
                         >
                           Details
                         </button>
@@ -1042,7 +1040,7 @@ function OriginalTimelineSection({
                 {inlineSettingEraId === era.id && (
                   <SettingForm
                     onCancel={() => setInlineSettingEraId(null)}
-                    onCreate={(name, desc, start, end) =>
+                    onCreate={(name: string, desc: string, start: number | null, end: number | null) =>
                       createSetting({
                         eraId: era.id,
                         name,
@@ -1089,19 +1087,19 @@ function OriginalTimelineSection({
                     <input
                       className="rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm md:col-span-2"
                       value={m.name}
-                      onChange={(e) => updateMarker(m.id, { name: e.target.value })}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateMarker(m.id, { name: e.target.value })}
                     />
                     <input
                       type="number"
                       className="rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm"
                       placeholder="Year"
                       value={m.year ?? ""}
-                      onChange={(e) => updateMarker(m.id, { year: intOrNull(e.target.value) ?? undefined })}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateMarker(m.id, { year: intOrNull(e.target.value) ?? undefined })}
                     />
                     <select
                       className="rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm"
                       value={m.eraId ?? ""}
-                      onChange={(e) =>
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
                         updateMarker(m.id, { eraId: e.target.value ? Number(e.target.value) : null })
                       }
                     >
@@ -1115,7 +1113,7 @@ function OriginalTimelineSection({
                     <div className="flex gap-2">
                       <button
                         className="rounded border border-white/15 px-2 text-sm hover:bg-white/10"
-                        onClick={() => alert(`(placeholder) Event #${m.id}`)}
+                        onClick={() => window.location.href = `/worldbuilder/worlds/eventdetails?eventId=${m.id}&eraId=${m.eraId || 'unassigned'}&worldId=${active.id}`}
                       >
                         Details
                       </button>
@@ -1127,13 +1125,13 @@ function OriginalTimelineSection({
                       </button>
                     </div>
                   </div>
-                  <textarea
-                    rows={3}
-                    className="mt-2 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm"
-                    placeholder="Event descriptionâ€¦"
-                    value={m.description ?? ""}
-                    onChange={(e) => updateMarker(m.id, { description: e.target.value })}
-                  />
+                  {React.createElement('textarea', {
+                    rows: 3,
+                    className: "mt-2 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm",
+                    placeholder: "Event description…",
+                    value: m.description ?? "",
+                    onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => updateMarker(m.id, { description: e.target.value })
+                  })}
                   <div className="mt-1 text-xs text-zinc-400">Era: {eraName}</div>
                 </div>
               );

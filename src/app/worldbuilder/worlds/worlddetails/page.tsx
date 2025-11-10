@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
@@ -119,7 +119,7 @@ interface WorldDetailsData {
   timeline: WorldTimelineData;
 }
 
-export default function WorldDetailsPage() {
+function WorldDetailsContent() {
   const searchParams = useSearchParams();
   const worldId = searchParams.get("worldId");
 
@@ -774,5 +774,19 @@ export default function WorldDetailsPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function WorldDetailsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen px-6 py-10">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center text-zinc-400">Loading world details...</div>
+        </div>
+      </div>
+    }>
+      <WorldDetailsContent />
+    </Suspense>
   );
 }

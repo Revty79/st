@@ -1,7 +1,8 @@
 // src/components/shared/FormField.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
+import type { JSX } from "react";
 
 interface FormFieldProps {
   label: string;
@@ -14,6 +15,7 @@ interface FormFieldProps {
   className?: string;
   rows?: number;
   maxLength?: number;
+  helperText?: string;
 }
 
 export default function FormField({
@@ -27,6 +29,7 @@ export default function FormField({
   className = "",
   rows = 3,
   maxLength,
+  helperText,
 }: FormFieldProps) {
   const [localValue, setLocalValue] = useState(value?.toString() ?? "");
 
@@ -54,20 +57,20 @@ export default function FormField({
     <div className={`space-y-1 ${className}`}>
       <label className="block text-sm font-medium text-zinc-200">{label}</label>
       {type === "textarea" ? (
-        <textarea
-          value={localValue}
-          onChange={(e) => handleChange(e.target.value)}
-          onBlur={handleBlur}
-          placeholder={placeholder}
-          disabled={disabled}
-          rows={rows}
-          maxLength={maxLength}
-          className={`${baseInputClass} resize-y`}
-        />
+        React.createElement('textarea', {
+          value: localValue,
+          onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => handleChange(e.target.value),
+          onBlur: handleBlur,
+          placeholder: placeholder,
+          disabled: disabled,
+          rows: rows,
+          maxLength: maxLength,
+          className: `${baseInputClass} resize-y`
+        })
       ) : type === "select" && normalizedOptions.length > 0 ? (
         <select
           value={localValue}
-          onChange={(e) => {
+          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
             handleChange(e.target.value);
             onCommit(e.target.value); // Commit immediately for selects
           }}
@@ -84,13 +87,18 @@ export default function FormField({
         <input
           type={type}
           value={localValue}
-          onChange={(e) => handleChange(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange(e.target.value)}
           onBlur={handleBlur}
           placeholder={placeholder}
           disabled={disabled}
           maxLength={maxLength}
           className={baseInputClass}
         />
+      )}
+      {helperText && (
+        <div className="text-xs text-zinc-400 mt-1">
+          {helperText}
+        </div>
       )}
       {maxLength && type === "textarea" && (
         <div className="text-xs text-zinc-400 text-right">

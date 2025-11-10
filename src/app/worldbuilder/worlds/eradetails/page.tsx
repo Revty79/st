@@ -1,11 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import EraDetailsForm, { EraDetailsData, EraBasicInfo, EraBackdropDefaults, EraTradeEconomics, EraCatalogs } from "@/components/worldbuilder/world-details/EraDetailsForm";
 
+// Loading component
+const Loading = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
+  </div>
+);
+
 export default function EraDetailsPage() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <EraDetailsContent />
+    </Suspense>
+  );
+}
+
+function EraDetailsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const worldId = searchParams.get("worldId");

@@ -86,6 +86,7 @@ export interface EraRegionKingdom {
 }
 
 export interface EraGovernment {
+  continent: string; // Which continent this government is on
   name: string;
   type: string; // Monarchy, Republic, etc.
   oneLineNote: string;
@@ -195,6 +196,7 @@ interface EraDetailsFormProps {
   data: EraDetailsData;
   onUpdate: (data: Partial<EraDetailsData>) => void;
   worldRealms: Array<{ id: string; name: string }>; // Available realms from World
+  worldContinents: Array<{ name: string; character: string }>; // Available continents from World
   currentSection: string;
   onManualSave?: () => void;
   isManualSaving?: boolean;
@@ -257,15 +259,18 @@ const Select = ({ value, onChange, options, className = "" }: any) => (
 // Section 3: Governments
 function GovernmentsSection({ 
   governments, 
-  onUpdate 
+  onUpdate,
+  availableContinents
 }: { 
   governments: EraGovernment[]; 
   onUpdate: (govs: EraGovernment[]) => void;
+  availableContinents: Array<{ name: string; character: string }>;
 }) {
   const [expandedGov, setExpandedGov] = useState<number | null>(null);
 
   const addGovernment = () => {
     const newGov: EraGovernment = {
+      continent: availableContinents[0]?.name || "",
       name: "",
       type: "",
       oneLineNote: "",
@@ -374,6 +379,21 @@ function GovernmentsSection({
 
               {expandedGov === govIdx && (
                 <div className="space-y-4 border-t border-white/20 pt-4">
+                  {/* Continent Selection - First Field */}
+                  <div>
+                    <label className="block text-xs font-medium text-white/80 mb-1">
+                      Continent <span className="text-amber-400">*</span>
+                    </label>
+                    <Select
+                      value={gov.continent}
+                      onChange={(e: any) => updateGovernment(govIdx, 'continent', e.target.value)}
+                      options={availableContinents.map(c => ({ value: c.name, label: `${c.name} (${c.character})` }))}
+                    />
+                    <div className="text-xs text-white/50 mt-1">
+                      Which continent does this government control?
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-medium text-white/80 mb-1">Name</label>
@@ -995,7 +1015,8 @@ function SettingStubsSection({
 export default function EraDetailsForm({ 
   data, 
   onUpdate, 
-  worldRealms, 
+  worldRealms,
+  worldContinents,
   currentSection,
   onManualSave,
   isManualSaving
@@ -1336,6 +1357,7 @@ export default function EraDetailsForm({
           <GovernmentsSection
             governments={data.governments}
             onUpdate={(govs: any) => onUpdate({ governments: govs })}
+            availableContinents={worldContinents}
           />
         </div>
       )}

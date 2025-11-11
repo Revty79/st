@@ -172,15 +172,17 @@ function SettingDetailsContent() {
   // Track which MVS sections are completed
   const [mvsSections, setMvsSections] = useState<Set<string>>(new Set());
 
-  // Era data for inheritance
+  // Context data for inheritance
   const [eraData, setEraData] = useState<any>(null);
+  const [worldData, setWorldData] = useState<any>(null);
 
   const [data, setData] = useState<SettingsData>({
     frontMatter: {
       name: "",
       summary: "",
       eraAnchor: "",
-      regionScope: "city",
+      selectedRegion: "",
+      selectedGovernment: "",
       toneWords: [],
       tags: [],
       activeRealms: []
@@ -254,6 +256,31 @@ function SettingDetailsContent() {
     }
   });
 
+  // Data resolver: trace selectedRegion → Government → Continent → Geography
+  const resolveContinent = () => {
+    if (!data.frontMatter.selectedRegion || !eraData?.governments || !worldData?.planetProfile?.continents) {
+      return null;
+    }
+
+    // Find which government contains the selected region
+    const parentGov = eraData.governments.find((gov: any) =>
+      gov.regionsKingdoms.some((rk: any) => rk.name === data.frontMatter.selectedRegion)
+    );
+
+    if (!parentGov?.continent) {
+      return null;
+    }
+
+    // Find continent data from World
+    const continentData = worldData.planetProfile.continents.find(
+      (c: any) => c.name === parentGov.continent
+    );
+
+    return continentData || null;
+  };
+
+  const resolvedContinent = resolveContinent();
+
   // Load setting details
   useEffect(() => {
     if (!settingId && !worldId) {
@@ -271,12 +298,13 @@ function SettingDetailsContent() {
           // TODO: Load actual Era data from API when ready
           const mockEraData = {
             basicInfo: {
-              name: "Age of Steel and Steam",
-              shortSummary: "An era of technological advancement and industrial growth",
+              name: "Age of Steel",
+              startDate: { year: "318", month: "Frostmarch", day: "1" },
+              endDate: { year: "325", month: "Sunbloom", day: "30" }
             },
             backdropDefaults: {
-              activeRealms: ["material-plane", "shadow-realm"],
-              typicalTechLevel: "Industrial Age",
+              activeRealms: ["Material", "Shadow", "Feywild"],
+              typicalTechLevel: "Renaissance (Firearms emerging)",
               magicTide: "Low" as const,
               stabilityConflict: "Tense" as const,
               economy: "Boom" as const
@@ -284,18 +312,21 @@ function SettingDetailsContent() {
             governments: [
               {
                 name: "Valerian Empire",
+                type: "Constitutional Monarchy",
+                continent: "Aurelia",
                 regionsKingdoms: [
-                  {
-                    name: "Northern Provinces",
-                    kind: "Region" as const,
-                    localCurrency: {
-                      denominations: [
-                        { name: "Gold Crown", valueInWorldAnchor: 10 },
-                        { name: "Silver Mark", valueInWorldAnchor: 1 },
-                        { name: "Copper Bit", valueInWorldAnchor: 0.1 }
-                      ]
-                    }
-                  }
+                  { name: "Northern Provinces", kind: "Region" as const },
+                  { name: "Coastal Territories", kind: "Region" as const },
+                  { name: "Ironhaven", kind: "City-State" as const }
+                ]
+              },
+              {
+                name: "Desert Caliphate",
+                type: "Theocracy",
+                continent: "Valtor",
+                regionsKingdoms: [
+                  { name: "Oasis Kingdoms", kind: "Region" as const },
+                  { name: "Sand Wastes", kind: "Territory" as const }
                 ]
               }
             ],
@@ -316,7 +347,12 @@ function SettingDetailsContent() {
               factions: [
                 { factionId: "merchants-guild", factionName: "Merchants Guild", type: "Trade", scope: "Regional", posture: "Growing", oneLineAim: "Control all trade routes" },
                 { factionId: "steel-legion", factionName: "Steel Legion", type: "Military", scope: "National", posture: "Aggressive", oneLineAim: "Expand empire borders" }
-              ]
+              ],
+              mountainRanges: ["Ironspine Mountains", "Frostpeak Range"],
+              lakes: ["Lake Mirrowen", "Silvermere"],
+              rivers: ["River Vey", "Serpent's Run"],
+              tradePaths: ["Old Imperial Road", "Silkway Caravan Route"],
+              otherFeatures: ["Crystal Caves", "Sunken Temple Ruins", "The Whispering Grove"]
             }
           };
           
@@ -330,17 +366,102 @@ function SettingDetailsContent() {
               ...prev.frontMatter,
               eraAnchor: mockEraData.basicInfo.name,
               activeRealms: mockEraData.backdropDefaults.activeRealms
-            },
-            // Populate resolved currency from Era
-            currency: {
-              resolvedDenominations: mockEraData.governments[0]?.regionsKingdoms[0]?.localCurrency.denominations.reduce((acc: any, denom: any) => {
-                acc[denom.name] = denom.valueInWorldAnchor;
-                return acc;
-              }, {}),
-              barterQuirks: "",
-              currencySlang: {}
             }
           }));
+        }
+
+        // Simulate loading World data for inheritance
+        // TODO: Replace with actual API call to /api/world-details?worldId=${worldId}
+        if (worldId) {
+          const mockWorldData = {
+            basicInfo: {
+              name: "Aethermoor",
+              tags: ["High Fantasy", "Political Intrigue", "War"]
+            },
+            calendar: {
+              dayHours: 24,
+              yearDays: 365,
+              months: [
+                { name: "Frostmarch", days: 31 },
+                { name: "Raincall", days: 30 },
+                { name: "Bloomspire", days: 31 },
+                { name: "Sunbloom", days: 30 },
+                { name: "Highsun", days: 31 },
+                { name: "Harvestmoon", days: 30 },
+                { name: "Emberfade", days: 31 },
+                { name: "Darkfall", days: 30 },
+                { name: "Stormwatch", days: 31 },
+                { name: "Nightveil", days: 30 },
+                { name: "Icereign", days: 31 },
+                { name: "Starrest", days: 29 }
+              ],
+              weekdays: ["Moonday", "Tideday", "Firesday", "Earthday", "Starday", "Sunrest"],
+              seasonBands: [
+                { name: "Winter", startDay: 1, endDay: 90 },
+                { name: "Spring", startDay: 91, endDay: 180 },
+                { name: "Summer", startDay: 181, endDay: 270 },
+                { name: "Autumn", startDay: 271, endDay: 365 }
+              ]
+            },
+            realms: [
+              { id: "material", name: "Material" },
+              { id: "shadow", name: "Shadow" },
+              { id: "feywild", name: "Feywild" },
+              { id: "astral", name: "Astral" },
+              { id: "ethereal", name: "Ethereal" }
+            ],
+            planetProfile: {
+              continents: [
+                {
+                  name: "Aurelia",
+                  character: "Verdant and temperate",
+                  mountains: ["Ironspine Mountains", "Frostpeak Range", "Skyreach Peaks"],
+                  rivers: ["River Vey", "Serpent's Run", "Goldstream"],
+                  lakes: ["Lake Mirrowen", "Silvermere", "The Deepwell"],
+                  coasts: ["Sunset Coast", "Bay of Storms", "Merchant's Harbor"],
+                  resources: ["Iron Deposits", "Ancient Oak Forests", "Silver Mines"],
+                  hazards: ["Bandit Territories", "Wildfire Zones", "Cursed Marshlands"],
+                  tradePaths: ["Old Imperial Road", "Silkway Caravan Route", "Merchant's March"]
+                },
+                {
+                  name: "Valtor",
+                  character: "Arid and windswept",
+                  mountains: ["Sunscorch Peaks", "Dragonspine Range"],
+                  rivers: ["Drywater Creek", "Oasis Run"],
+                  lakes: ["Mirage Lake"],
+                  coasts: ["The Scorched Shore"],
+                  resources: ["Sandglass Deposits", "Date Palms", "Spice Gardens"],
+                  hazards: ["Sandstorms", "Desert Raiders", "Mirage Traps"],
+                  tradePaths: ["Sand Road", "Oasis Trail"]
+                },
+                {
+                  name: "Zenithia",
+                  character: "Mountainous and frozen",
+                  mountains: ["World's Crown", "Everfrost Peaks", "Glacier Teeth"],
+                  rivers: ["Frozen Flow", "Meltwater Rush"],
+                  lakes: ["Crystal Lake", "Icebound Deep"],
+                  coasts: ["Shatter Coast", "Ice Harbor"],
+                  resources: ["Permafrost Minerals", "Whale Oil", "Ice Crystals"],
+                  hazards: ["Avalanche Zones", "Whiteout Blizzards", "Ice Giants"],
+                  tradePaths: ["Northern Pass", "Frost Trail"]
+                },
+                {
+                  name: "Borealis",
+                  character: "Tropical and lush",
+                  mountains: ["Emerald Peaks", "Thunder Ridge"],
+                  rivers: ["Jade River", "Rainbow Falls Run", "Python's Coil"],
+                  lakes: ["Lotus Lake", "The Singing Waters"],
+                  coasts: ["Paradise Bay", "Coral Coast", "Monsoon Shore"],
+                  resources: ["Tropical Hardwoods", "Exotic Spices", "Pearl Beds"],
+                  hazards: ["Monsoon Floods", "Jungle Fever", "Predator Territories"],
+                  tradePaths: ["Jungle Road", "Coastal Route", "River Trade"]
+                }
+              ]
+            }
+          };
+          
+          setWorldData(mockWorldData);
+          setWorldName(mockWorldData.basicInfo.name);
         }
         
         // TODO: Load Setting data if editing existing
@@ -501,7 +622,17 @@ function SettingDetailsContent() {
           <FrontMatterForm 
             data={data.frontMatter} 
             onUpdate={updateSection("frontMatter")}
-            eraData={eraData}
+            worldContext={worldData ? {
+              name: worldData.basicInfo.name,
+              realms: worldData.realms,
+              tags: worldData.basicInfo.tags
+            } : undefined}
+            eraContext={eraData ? {
+              name: eraData.basicInfo.name,
+              activeRealms: eraData.backdropDefaults.activeRealms,
+              backdropDefaults: eraData.backdropDefaults,
+              governments: eraData.governments
+            } : undefined}
             onManualSave={manualSave}
             isManualSaving={manualSaving}
           />
@@ -510,6 +641,12 @@ function SettingDetailsContent() {
           <TimeAndPlaceForm 
             data={data.timeAndPlace} 
             onUpdate={updateSection("timeAndPlace")}
+            worldCalendar={worldData?.calendar}
+            eraContext={eraData ? {
+              name: eraData.basicInfo.name,
+              startDate: eraData.basicInfo.startDate,
+              endDate: eraData.basicInfo.endDate
+            } : undefined}
             onManualSave={manualSave}
             isManualSaving={manualSaving}
           />
@@ -526,6 +663,13 @@ function SettingDetailsContent() {
           <GeographyAndClimateForm 
             data={data.geographyEnvironment} 
             onUpdate={updateSection("geographyEnvironment")}
+            continentGeography={resolvedContinent || undefined}
+            context={{
+              worldName: worldData?.basicInfo?.name || "World",
+              eraName: eraData?.basicInfo?.name || "Era",
+              continentName: resolvedContinent?.name || null,
+              regionName: data.frontMatter.selectedRegion || null
+            }}
             onManualSave={manualSave}
             isManualSaving={manualSaving}
           />

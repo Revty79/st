@@ -39,7 +39,7 @@ export default function SettingForm({ onCancel, onCreate }: SettingFormProps) {
           />
         </FormField>
 
-        <FormField label="Description">
+        <FormField label="Short Summary">
           <Textarea
             rows={3}
             value={desc}

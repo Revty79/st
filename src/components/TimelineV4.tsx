@@ -351,17 +351,31 @@ export function TimelineV4({
               <div className="flex items-center gap-2">
                 <span className="text-sm text-zinc-400">Zoom:</span>
                 <button
-                  onClick={() => setZoomLevel(Math.max(0.5, zoomLevel - 0.25))}
+                  onClick={() => setZoomLevel(Math.max(0.05, (zoomLevel - 0.05)))}
                   className="px-2 py-1 bg-zinc-700 text-white rounded text-sm hover:bg-zinc-600"
-                  disabled={zoomLevel <= 0.5}
+                  disabled={zoomLevel <= 0.05}
                 >
                   -
                 </button>
-                <span className="text-sm text-zinc-300 min-w-[3ch] text-center">{zoomLevel.toFixed(1)}x</span>
+                <input
+                  type="number"
+                  min={0.05}
+                  max={30}
+                  step={0.01}
+                  value={zoomLevel}
+                  onChange={e => {
+                    let val = parseFloat(e.target.value);
+                    if (isNaN(val)) val = 1;
+                    setZoomLevel(Math.max(0.05, Math.min(30, val)));
+                  }}
+                  className="w-16 px-2 py-1 bg-zinc-800 text-zinc-100 border border-zinc-600 rounded text-center text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  style={{margin: '0 0.25rem'}}
+                />
+                <span className="text-sm text-zinc-300">x</span>
                 <button
-                  onClick={() => setZoomLevel(Math.min(3, zoomLevel + 0.25))}
+                  onClick={() => setZoomLevel(Math.min(30, (zoomLevel + 0.05)))}
                   className="px-2 py-1 bg-zinc-700 text-white rounded text-sm hover:bg-zinc-600"
-                  disabled={zoomLevel >= 3}
+                  disabled={zoomLevel >= 30}
                 >
                   +
                 </button>

@@ -128,6 +128,7 @@ const nv = (x: unknown) => (x === null || x === undefined || x === "" ? "—" : 
 export default function InventoryPage() {
   // Tab state
   const [tab, setTab] = useState<TabKey>("items");
+  const [recordType, setRecordType] = useState<"items" | "weapons" | "armor">("items");
 
   // Lists
   const [items, setItems] = useState<ItemRow[]>([]);
@@ -220,6 +221,7 @@ export default function InventoryPage() {
       setRecord(rec);
       setSelectedId(id);
       setDraft(rec);
+      setRecordType(type);
     }
   }
 
@@ -314,7 +316,7 @@ export default function InventoryPage() {
   /* ---------- Preview ---------- */
   const previewText = useMemo(() => {
     if (!record) return "";
-    if (tab === "items") {
+    if (recordType === "items") {
       const i = draft as ItemRow;
       return [
         `Item: ${record.name}`,
@@ -325,7 +327,7 @@ export default function InventoryPage() {
         `Weight: ${nv(i.weight)}`,
         `Notes: ${nv(i.narrative_notes)}`,
       ].join("\n");
-    } else if (tab === "weapons") {
+    } else if (recordType === "weapons") {
       const w = draft as WeaponRow;
       return [
         `Weapon: ${record.name}`,
@@ -338,7 +340,7 @@ export default function InventoryPage() {
         `Effect: ${nv(w.effect)}`,
         `Notes: ${nv(w.narrative_notes)}`,
       ].join("\n");
-    } else if (tab === "armor") {
+    } else if (recordType === "armor") {
       const a = draft as ArmorRow;
       return [
         `Armor: ${record.name}`,
@@ -352,7 +354,7 @@ export default function InventoryPage() {
       ].join("\n");
     }
     return "";
-  }, [record, draft, tab]);
+  }, [record, draft, recordType]);
 
   /* ---------- render ---------- */
   return (

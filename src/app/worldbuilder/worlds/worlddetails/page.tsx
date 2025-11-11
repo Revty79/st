@@ -237,9 +237,9 @@ function WorldDetailsContent() {
         setData({
           basic: {
             name: worldResult.data.name,
-            pitch: details.pitch || "",
-            tags: details.tags || [],
-            styleGuardrails: details.styleGuardrails || []
+            pitch: worldResult.data.description || "",
+            tags: details.basicInfo?.tags_json ? JSON.parse(details.basicInfo.tags_json) : [],
+            styleGuardrails: details.basicInfo?.style_guardrails_json ? JSON.parse(details.basicInfo.style_guardrails_json) : []
           },
           time: {
             dayHours: details.day_hours,
@@ -314,7 +314,10 @@ function WorldDetailsContent() {
           cosmology: {
             realms: details.cosmologyRealms || []
           },
-          catalogs: {},
+          catalogs: {
+            races: details.masterCatalogs?.races || [],
+            creatures: details.masterCatalogs?.creatures || []
+          },
           currency: {
             creditValue: details.creditValue ?? null
           },
@@ -978,7 +981,7 @@ function WorldDetailsContent() {
                 )}
               </button>
             </div>
-            <MasterCatalogsForm data={data.catalogs} onUpdate={updateMasterCatalogs} />
+            <MasterCatalogsForm data={data.catalogs} onUpdate={updateMasterCatalogs} worldId={Number(worldId)} />
           </div>
         )}
         {currentSection === "currency" && (

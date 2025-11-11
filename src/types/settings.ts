@@ -3,7 +3,8 @@ export interface FrontMatterData {
   name: string;
   summary: string;
   eraAnchor: string; // Display only
-  regionScope: 'city' | 'province' | 'front' | 'bubble';
+  selectedRegion: string; // Region/Kingdom name from Era (replaces manual regionScope)
+  selectedGovernment: string; // Government name from Era (for context)
   toneWords: string[]; // 2-3 words
   tags: string[]; // 5-7 tags
   activeRealms: string[]; // Subset of Era realms

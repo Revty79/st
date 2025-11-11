@@ -310,12 +310,12 @@ export default function TimeCalendarForm({ data, onUpdate }: TimeCalendarFormPro
             Length of Year (days)
           </label>
           <p className="text-xs text-white mb-2">
-            Integer, 30–1000 days.
+            Integer, 30–1000 days. (You can set any year length up to 1000 days for your world.)
           </p>
           <NumberInput
             value={safeData.yearDays}
             onCommit={(value) => onUpdate({ yearDays: value })}
-            placeholder="365"
+            placeholder="e.g. 365 or 1000"
             min={30}
             max={1000}
           />
@@ -486,27 +486,27 @@ export default function TimeCalendarForm({ data, onUpdate }: TimeCalendarFormPro
 
                   <div>
                     <label className="block text-xs font-medium text-white mb-1">
-                      Start Day (1–{safeData.yearDays || 365})
+                      Start Day (1–{safeData.yearDays || 1000})
                     </label>
                     <NumberInput
                       value={band.startDay}
                       onCommit={(value) => updateSeasonBand(index, { startDay: value })}
                       placeholder="Day"
                       min={1}
-                      max={safeData.yearDays || 365}
+                      max={safeData.yearDays || 1000}
                     />
                   </div>
 
                   <div>
                     <label className="block text-xs font-medium text-white mb-1">
-                      End Day (1–{safeData.yearDays || 365})
+                      End Day (1–{safeData.yearDays || 1000})
                     </label>
                     <NumberInput
                       value={band.endDay}
                       onCommit={(value) => updateSeasonBand(index, { endDay: value })}
                       placeholder="Day"
                       min={1}
-                      max={safeData.yearDays || 365}
+                      max={safeData.yearDays || 1000}
                     />
                   </div>
                 </div>

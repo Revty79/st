@@ -48,10 +48,10 @@ const SectionHeader = ({ title, onSave, isSaving }: {
 );
 
 interface PlacesOfInterestFormProps {
-  data: PlacesOfInterestData;
-  onUpdate: (updates: Partial<PlacesOfInterestData>) => void;
-  onManualSave?: () => void;
-  isManualSaving?: boolean;
+	data: PlacesOfInterestData;
+	onUpdate: (updates: Partial<PlacesOfInterestData>) => void;
+	onManualSave?: () => void;
+	isManualSaving?: boolean;
 }
 
 export function PlacesOfInterestForm({ data, onUpdate, onManualSave, isManualSaving }: PlacesOfInterestFormProps) {
@@ -319,7 +319,19 @@ interface CampaignSeedsFormProps {
   isManualSaving?: boolean;
 }
 
+
+
 export function CampaignSeedsForm({ data, onUpdate, onManualSave, isManualSaving }: CampaignSeedsFormProps) {
+  // Local UI state for NPC add/edit per seed
+  const [npcUIState, setNpcUIState] = useState<{
+    [seedIndex: number]: { adding?: boolean; editing?: number; name: string } | undefined;
+  }>({});
+
+  const openAddNpc = (seedIndex: number) => setNpcUIState((prev) => ({ ...prev, [seedIndex]: { adding: true, name: "" } }));
+  const setNpcName = (seedIndex: number, name: string) => setNpcUIState((prev) => ({ ...prev, [seedIndex]: { ...prev[seedIndex], name } }));
+  const openEditNpc = (seedIndex: number, npcIndex: number, name: string) => setNpcUIState((prev) => ({ ...prev, [seedIndex]: { editing: npcIndex, name } }));
+  const clearNpcUI = (seedIndex: number) => setNpcUIState((prev) => ({ ...prev, [seedIndex]: undefined }));
+
   const handleAddSeed = () => {
     onUpdate({
       seeds: [...data.seeds, {
@@ -501,30 +513,86 @@ export function CampaignSeedsForm({ data, onUpdate, onManualSave, isManualSaving
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-3">
                   <h5 className="text-md font-medium text-white">Connected NPCs (2)</h5>
-                  {seed.ties.npcs.map((npc: string, npcIndex: number) => (
-                    <div key={npcIndex} className="flex gap-2">
+                  {/* NPC Add/Edit UI (local state) */}
+                  {npcUIState[index]?.adding ? (
+                    <div className="flex gap-2 mt-2">
                       <FormField
-                        label={`NPC ${npcIndex + 1}`}
-                        value={npc}
-                        onCommit={(value: string) => handleUpdateNPC(index, npcIndex, value)}
-                        placeholder="Guildmaster Velora (worried but hiding something)"
-                        maxLength={80}
+                        label="NPC Name"
+                        value={npcUIState[index]?.name || ""}
+                        onCommit={(v) => setNpcName(index, v)}
+                        placeholder="Enter NPC name..."
                         className="flex-1"
                       />
                       <button
-                        onClick={() => handleRemoveNPC(index, npcIndex)}
-                        className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded mt-6"
+                        type="button"
+                        onClick={() => {
+                          if (npcUIState[index]?.name.trim()) {
+                            const newSeeds = [...data.seeds];
+                            newSeeds[index].ties.npcs.push(npcUIState[index]!.name.trim());
+                            onUpdate({ seeds: newSeeds });
+                            clearNpcUI(index);
+                          }
+                        }}
+                        disabled={!npcUIState[index]?.name.trim()}
+                        className="px-3 py-1 bg-amber-500 text-black rounded hover:bg-amber-400 disabled:opacity-50"
                       >
-                        Remove
+                        Complete
                       </button>
                     </div>
+                  ) : (
+                    <button
+                      onClick={() => openAddNpc(index)}
+                      className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm"
+                    >
+                      Add NPC
+                    </button>
+                  )}
+                  {seed.ties.npcs.map((npc: string, npcIndex: number) => (
+                    <div key={npcIndex} className="flex gap-2 items-center">
+                      {npcUIState[index]?.editing === npcIndex ? (
+                        <>
+                          <FormField
+                            label="Edit NPC Name"
+                            value={npcUIState[index]?.name || ""}
+                            onCommit={(v) => setNpcName(index, v)}
+                            className="flex-1"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (npcUIState[index]?.name.trim()) {
+                                const newSeeds = [...data.seeds];
+                                newSeeds[index].ties.npcs[npcIndex] = npcUIState[index]!.name.trim();
+                                onUpdate({ seeds: newSeeds });
+                                clearNpcUI(index);
+                              }
+                            }}
+                            className="px-3 py-1 bg-green-500 text-white rounded"
+                          >
+                            Complete
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <span className="flex-1 text-white">{npc}</span>
+                          <button
+                            type="button"
+                            onClick={() => openEditNpc(index, npcIndex, npc)}
+                            className="px-3 py-1 bg-blue-500 text-white rounded"
+                          >
+                            Edit Details
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveNPC(index, npcIndex)}
+                            className="px-3 py-1 bg-red-500 text-white rounded"
+                          >
+                            Remove
+                          </button>
+                        </>
+                      )}
+                    </div>
                   ))}
-                  <button
-                    onClick={() => handleAddNPC(index)}
-                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm"
-                  >
-                    Add NPC
-                  </button>
                 </div>
 
                 <div className="space-y-3">
@@ -977,10 +1045,9 @@ export function RacesBeingsForm({ data, onUpdate, onManualSave, isManualSaving }
                 <FormField
                   label=""
                   value={data.raceNotes[race] || ''}
-                  onChange={(value: string) => handleRaceNoteChange(race, value)}
+                  onCommit={(value: string) => handleRaceNoteChange(race, value)}
                   placeholder="Local customs, restrictions, or cultural notes..."
                   maxLength={200}
-                  showLabel={false}
                 />
               </div>
             </div>
@@ -1088,19 +1155,19 @@ export function CreaturesForm({ data, onUpdate, onManualSave, isManualSaving }: 
           <FormField
             label="Encounter Difficulty"
             value={data.localModifiers.encounterDifficulty}
-            onChange={(value: string) => handleModifierChange('encounterDifficulty', value)}
+            onCommit={(value: string) => handleModifierChange('encounterDifficulty', value)}
             placeholder="Normal / Increased / Reduced"
           />
           <FormField
             label="Seasonal Window"
             value={data.localModifiers.seasonalWindow}
-            onChange={(value: string) => handleModifierChange('seasonalWindow', value)}
+            onCommit={(value: string) => handleModifierChange('seasonalWindow', value)}
             placeholder="Year-round / Spring-Summer / etc."
           />
           <FormField
             label="Laws & Protections"
             value={data.localModifiers.lawsProtections}
-            onChange={(value: string) => handleModifierChange('lawsProtections', value)}
+            onCommit={(value: string) => handleModifierChange('lawsProtections', value)}
             placeholder="Royal hunting preserve / Open season / etc."
           />
         </div>
@@ -1189,9 +1256,8 @@ export function CreaturesForm({ data, onUpdate, onManualSave, isManualSaving }: 
                 <FormField
                   label=""
                   value={(data.regionalAreas[creature] || []).join(', ')}
-                  onChange={(value: string) => handleAreaChange(creature, value)}
+                  onCommit={(value: string) => handleAreaChange(creature, value)}
                   placeholder="forests, mountains, caves..."
-                  showLabel={false}
                 />
               </div>
             </div>
@@ -1368,10 +1434,9 @@ export function DeitiesBeliefForm({ data, onUpdate, onManualSave, isManualSaving
                 <FormField
                   label=""
                   value={data.teachingsWorship[deity] || ''}
-                  onChange={(value: string) => handleTeachingChange(deity, value)}
+                  onCommit={(value: string) => handleTeachingChange(deity, value)}
                   placeholder="Local customs, temples, festivals, taboos..."
                   maxLength={300}
-                  showLabel={false}
                 />
               </div>
             </div>
@@ -1499,21 +1564,19 @@ export function RelationsLawForm({ data, onUpdate, onManualSave, isManualSaving 
           <FormField
             label="Who Decides (Authority)"
             value={data.governance.whoDecides}
-            onChange={(value: string) => handleGovernanceChange('whoDecides', value)}
+            onCommit={(value: string) => handleGovernanceChange('whoDecides', value)}
             placeholder="Mayor, Council of Elders, Noble House, etc."
           />
-          
           <FormField
             label="How It Reaches the Streets"
             value={data.governance.howItReachesStreets}
-            onChange={(value: string) => handleGovernanceChange('howItReachesStreets', value)}
+            onCommit={(value: string) => handleGovernanceChange('howItReachesStreets', value)}
             placeholder="Town criers, posted notices, guards, etc."
           />
-          
           <FormField
             label="Enforcement Style"
             value={data.governance.enforcementStyle}
-            onChange={(value: string) => handleGovernanceChange('enforcementStyle', value)}
+            onCommit={(value: string) => handleGovernanceChange('enforcementStyle', value)}
             placeholder="Heavy-handed, corrupt, fair but slow, etc."
           />
         </div>
@@ -1570,9 +1633,8 @@ export function RelationsLawForm({ data, onUpdate, onManualSave, isManualSaving 
                 <FormField
                   label={`Court ${index + 1}`}
                   value={court}
-                  onChange={(value: string) => handleUpdateCourt(index, value)}
+                  onCommit={(value: string) => handleUpdateCourt(index, value)}
                   placeholder="e.g. Trade Disputes Court, Criminal Tribunal"
-                  showLabel={false}
                 />
               </div>
               <button
@@ -1597,17 +1659,17 @@ export function RelationsLawForm({ data, onUpdate, onManualSave, isManualSaving 
         <FormField
           label="Fair Justice Example"
           value={data.governance.fairExample}
-          onChange={(value: string) => handleGovernanceChange('fairExample', value)}
+          onCommit={(value: string) => handleGovernanceChange('fairExample', value)}
           placeholder="A case where justice was served properly..."
-          textarea={true}
+          type="textarea"
         />
         
         <FormField
           label="Unfair Justice Example"
           value={data.governance.unfairExample}
-          onChange={(value: string) => handleGovernanceChange('unfairExample', value)}
+          onCommit={(value: string) => handleGovernanceChange('unfairExample', value)}
           placeholder="A case where justice was corrupted or failed..."
-          textarea={true}
+          type="textarea"
         />
       </div>
 
@@ -1668,9 +1730,8 @@ export function RelationsLawForm({ data, onUpdate, onManualSave, isManualSaving 
                 <FormField
                   label=""
                   value={consequence}
-                  onChange={(value: string) => handleConsequenceChange(action, value)}
+                  onCommit={(value: string) => handleConsequenceChange(action, value)}
                   placeholder="Then likely..."
-                  showLabel={false}
                 />
                 <button
                   onClick={() => handleRemoveConsequence(action)}
@@ -1794,9 +1855,9 @@ export function CurrencyForm({ data, onUpdate, onManualSave, isManualSaving }: {
         <FormField
           label="Local Barter & Exchange Quirks"
           value={data.barterQuirks}
-          onChange={handleBarterQuirksChange}
+          onCommit={handleBarterQuirksChange}
           placeholder="Regional preferences, trade goods, seasonal variations..."
-          textarea={true}
+          type="textarea"
           maxLength={300}
         />
         <div className="text-xs text-zinc-400 mt-1">
@@ -1861,9 +1922,8 @@ export function CurrencyForm({ data, onUpdate, onManualSave, isManualSaving }: {
                 <FormField
                   label=""
                   value={slang}
-                  onChange={(value: string) => handleSlangChange(denomination, value)}
+                  onCommit={(value: string) => handleSlangChange(denomination, value)}
                   placeholder='Local slang (e.g. "coppers", "dragons")'
-                  showLabel={false}
                 />
                 <button
                   onClick={() => handleRemoveSlang(denomination)}
@@ -1898,5 +1958,3 @@ export function CurrencyForm({ data, onUpdate, onManualSave, isManualSaving }: {
     </div>
   );
 }
-
-export default PlacesOfInterestForm;

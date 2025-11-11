@@ -37,10 +37,34 @@ const SectionHeader = ({ title, onSave, isSaving }: {
   </div>
 );
 
+// Context interfaces for inheritance
+interface WorldContext {
+  name: string;
+  realms: Array<{ id: string; name: string }>;
+  tags: string[];
+}
+
+interface EraContext {
+  name: string;
+  activeRealms: string[]; // Subset of World realms
+  backdropDefaults: {
+    typicalTechLevel: string;
+    magicTide: string;
+    stabilityConflict: string;
+  };
+  governments: Array<{
+    name: string;
+    type: string;
+    continent: string; // Which continent this government is on
+    regionsKingdoms: Array<{ name: string; kind: string }>;
+  }>;
+}
+
 interface FrontMatterFormProps {
   data: FrontMatterData;
   onUpdate: (updates: Partial<FrontMatterData>) => void;
-  eraData?: any; // Era context data for inheritance
+  worldContext?: WorldContext; // World data for inheritance
+  eraContext?: EraContext; // Era data for inheritance
   onManualSave?: () => void;
   isManualSaving?: boolean;
 }
@@ -59,14 +83,26 @@ const PresetTags = [
   "Academic", "Mercantile", "Criminal", "Faction-Play", "Exploration"
 ];
 
-const PresetRealms = [
-  "Material", "Shadow", "Feywild", "Ethereal", "Astral", "Fire", "Water",
-  "Earth", "Air", "Positive", "Negative", "Celestial", "Infernal", "Limbo"
-];
-
-export default function FrontMatterForm({ data, onUpdate, eraData, onManualSave, isManualSaving }: FrontMatterFormProps) {
+export default function FrontMatterForm({ data, onUpdate, worldContext, eraContext, onManualSave, isManualSaving }: FrontMatterFormProps) {
   const [customTag, setCustomTag] = useState("");
   const [customRealm, setCustomRealm] = useState("");
+
+  // Derive available realms from Era (subset of World realms)
+  const availableRealms = eraContext?.activeRealms?.map(realmId => {
+    const worldRealm = worldContext?.realms.find(r => r.id === realmId);
+    return worldRealm ? { id: worldRealm.id, name: worldRealm.name } : null;
+  }).filter(Boolean) || [];
+
+  // Derive region/kingdom options from Era governments
+  const regionOptions = eraContext?.governments?.flatMap(gov => 
+    gov.regionsKingdoms.map(rk => ({ value: rk.name, label: `${rk.name} (${gov.name})` }))
+  ) || [];
+
+  // Suggest tags from World, filtered through Era context
+  const suggestedTags = [
+    ...(worldContext?.tags || []),
+    ...PresetTags
+  ].filter((tag, idx, arr) => arr.indexOf(tag) === idx); // unique
 
   const handleAddTag = () => {
     if (customTag.trim() && !data.tags.includes(customTag.trim()) && data.tags.length < 7) {
@@ -77,6 +113,12 @@ export default function FrontMatterForm({ data, onUpdate, eraData, onManualSave,
 
   const handleRemoveTag = (tagToRemove: string) => {
     onUpdate({ tags: data.tags.filter(tag => tag !== tagToRemove) });
+  };
+
+  const handleAddPresetTag = (tag: string) => {
+    if (!data.tags.includes(tag) && data.tags.length < 7) {
+      onUpdate({ tags: [...data.tags, tag] });
+    }
   };
 
   const handleAddToneWord = () => {
@@ -159,14 +201,39 @@ export default function FrontMatterForm({ data, onUpdate, eraData, onManualSave,
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-white">Scope & Classification</h3>
         
-        <FormField
-          label="Region Scope"
-          type="select"
-          value={data.regionScope}
-          onCommit={(value: string) => onUpdate({ regionScope: value as FrontMatterData['regionScope'] })}
-          options={RegionScopeOptions}
-          helperText="The spatial focus of this setting"
-        />
+        <div>
+          <label className="block text-sm font-medium text-white mb-2">
+            Region/Kingdom <span className="text-amber-400">*</span>
+          </label>
+          <FormField
+            label=""
+            type="select"
+            value={data.selectedRegion}
+            onCommit={(value: string) => {
+              // Find the government that contains this region
+              const gov = eraContext?.governments?.find(g => 
+                g.regionsKingdoms.some(rk => rk.name === value)
+              );
+              onUpdate({ 
+                selectedRegion: value,
+                selectedGovernment: gov?.name || ''
+              });
+            }}
+            options={regionOptions}
+            placeholder="Select region from Era..."
+            helperText="Choose which Region/Kingdom this setting takes place in"
+          />
+          {data.selectedRegion && data.selectedGovernment && (
+            <div className="text-xs text-green-400 mt-1">
+              ✓ Part of {data.selectedGovernment}
+            </div>
+          )}
+          {regionOptions.length === 0 && (
+            <div className="text-xs text-red-400 mt-1">
+              ⚠️ No regions defined in Era yet. Add governments with regions first.
+            </div>
+          )}
+        </div>
 
         <div>
           <label className="block text-sm font-medium text-white mb-2">
@@ -273,11 +340,11 @@ export default function FrontMatterForm({ data, onUpdate, eraData, onManualSave,
         </div>
       </div>
 
-      {/* Active Realms */}
+      {/* Active Realms - Inherited from Era */}
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-white">Active Realms</h3>
         <div className="text-sm text-zinc-400">
-          Which planes/realms matter in this setting? (Subset from Era's active realms)
+          Which planes/realms matter in this setting? (Choose from Era's active realms)
         </div>
         
         {/* Current Active Realms */}
@@ -298,26 +365,28 @@ export default function FrontMatterForm({ data, onUpdate, eraData, onManualSave,
           ))}
         </div>
 
-        {/* Preset Realms */}
-        <div className="mb-3">
-          <div className="text-sm text-zinc-300 mb-2">Available Realms:</div>
-          <div className="flex flex-wrap gap-2">
-            {PresetRealms.map((realm) => (
-              <button
-                key={realm}
-                onClick={() => {
-                  if (!data.activeRealms.includes(realm)) {
-                    onUpdate({ activeRealms: [...data.activeRealms, realm] });
-                  }
-                }}
-                disabled={data.activeRealms.includes(realm)}
-                className="px-2 py-1 bg-purple-700 hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm rounded"
-              >
-                {realm}
-              </button>
-            ))}
+        {/* Available Realms from Era */}
+        {availableRealms.length > 0 && (
+          <div className="mb-3">
+            <div className="text-sm text-zinc-300 mb-2">Available from Era:</div>
+            <div className="flex flex-wrap gap-2">
+              {availableRealms.map((realm: any) => (
+                <button
+                  key={realm.id}
+                  onClick={() => {
+                    if (!data.activeRealms.includes(realm.name)) {
+                      onUpdate({ activeRealms: [...data.activeRealms, realm.name] });
+                    }
+                  }}
+                  disabled={data.activeRealms.includes(realm.name)}
+                  className="px-2 py-1 bg-purple-700 hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm rounded"
+                >
+                  {realm.name}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Custom Realm Input */}
         <div className="flex gap-2">
@@ -339,67 +408,40 @@ export default function FrontMatterForm({ data, onUpdate, eraData, onManualSave,
         </div>
       </div>
 
-      {/* Era Information Panel */}
-      {eraData && (
+      {/* Era Context Panel */}
+      {eraContext && (
         <div className="border border-blue-500/30 bg-blue-950/20 rounded-lg p-4">
-          <h4 className="text-blue-300 font-medium mb-3">Inherited from Era: {eraData.basicInfo?.name}</h4>
+          <h4 className="text-blue-300 font-medium mb-3">📊 Inherited from Era: {eraContext.name}</h4>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div>
-              <h5 className="text-blue-200 font-medium mb-2">Available Active Realms</h5>
-              <div className="space-y-1">
-                {eraData.backdropDefaults?.activeRealms.map((realm: string) => (
-                  <div key={realm} className="flex items-center gap-2 text-blue-100">
-                    <div className={`w-2 h-2 rounded-full ${data.activeRealms.includes(realm) ? 'bg-green-400' : 'bg-blue-400'}`}></div>
-                    <span className={data.activeRealms.includes(realm) ? 'text-green-400' : ''}>{realm}</span>
-                    {data.activeRealms.includes(realm) && <span className="text-xs text-green-300">(Active)</span>}
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            <div>
-              <h5 className="text-blue-200 font-medium mb-2">Era Context</h5>
+              <h5 className="text-blue-200 font-medium mb-2">Era Defaults</h5>
               <div className="space-y-1 text-blue-100">
-                <div><strong>Tech Level:</strong> {eraData.backdropDefaults?.typicalTechLevel}</div>
-                <div><strong>Magic Tide:</strong> {eraData.backdropDefaults?.magicTide}</div>
-                <div><strong>Stability:</strong> {eraData.backdropDefaults?.stabilityConflict}</div>
-                <div><strong>Economy:</strong> {eraData.backdropDefaults?.economy}</div>
+                <div><strong>Tech Level:</strong> {eraContext.backdropDefaults?.typicalTechLevel}</div>
+                <div><strong>Magic Tide:</strong> {eraContext.backdropDefaults?.magicTide}</div>
+                <div><strong>Stability:</strong> {eraContext.backdropDefaults?.stabilityConflict}</div>
               </div>
             </div>
 
-            {eraData.catalogs?.factions && (
+            {regionOptions.length > 0 && (
               <div>
-                <h5 className="text-blue-200 font-medium mb-2">Available Factions</h5>
+                <h5 className="text-blue-200 font-medium mb-2">Available Regions/Kingdoms</h5>
                 <div className="space-y-1 text-blue-100">
-                  {eraData.catalogs.factions.slice(0, 3).map((faction: any) => (
-                    <div key={faction.factionId} className="text-xs">
-                      <strong>{faction.factionName}</strong> - {faction.oneLineAim}
+                  {regionOptions.slice(0, 5).map((region) => (
+                    <div key={region.value} className="text-xs">
+                      • {region.label}
                     </div>
                   ))}
-                  {eraData.catalogs.factions.length > 3 && (
-                    <div className="text-xs text-blue-300">...and {eraData.catalogs.factions.length - 3} more</div>
+                  {regionOptions.length > 5 && (
+                    <div className="text-xs text-blue-300">...and {regionOptions.length - 5} more</div>
                   )}
-                </div>
-              </div>
-            )}
-
-            {eraData.governments?.[0]?.regionsKingdoms && (
-              <div>
-                <h5 className="text-blue-200 font-medium mb-2">Available Regions</h5>
-                <div className="space-y-1 text-blue-100">
-                  {eraData.governments[0].regionsKingdoms.slice(0, 3).map((region: any) => (
-                    <div key={region.name} className="text-xs">
-                      <strong>{region.name}</strong> ({region.kind})
-                    </div>
-                  ))}
                 </div>
               </div>
             )}
           </div>
           
           <div className="mt-3 text-xs text-blue-300">
-            <strong>Note:</strong> This Setting inherits data from the "{eraData.basicInfo?.name}" Era. 
+            <strong>💡 Note:</strong> This Setting inherits data from the <strong>{eraContext.name}</strong> Era. 
             Changes to Era settings will affect all Settings within that Era.
           </div>
         </div>
@@ -415,8 +457,8 @@ export default function FrontMatterForm({ data, onUpdate, eraData, onManualSave,
           <div className={data.summary ? "text-green-400" : "text-zinc-400"}>
             {data.summary ? "✓" : "○"} Short Summary
           </div>
-          <div className={data.regionScope ? "text-green-400" : "text-zinc-400"}>
-            {data.regionScope ? "✓" : "○"} Region Scope
+          <div className={data.selectedRegion ? "text-green-400" : "text-zinc-400"}>
+            {data.selectedRegion ? "✓" : "○"} Region/Kingdom
           </div>
           <div className={data.toneWords.length >= 2 ? "text-green-400" : "text-zinc-400"}>
             {data.toneWords.length >= 2 ? "✓" : "○"} Tone Words (2-3)

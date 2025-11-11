@@ -1520,28 +1520,6 @@ export default function CosmologyRealmsForm({ data, onUpdate }: CosmologyRealmsF
                     </p>
                   </div>
 
-                  {/* Realm-Bound Catalogs */}
-                  <div className="border-t border-white/20 pt-4 mt-4">
-                    <h3 className="text-lg font-semibold text-white mb-3">Available Races & Creatures</h3>
-                    <p className="text-sm text-white/60 mb-4">
-                      Select which races and creatures are available in this realm (checked = available in world)
-                    </p>
-                    
-                    {/* Races Section */}
-                    <RacesSelector
-                      realmIndex={index}
-                      selectedRaces={realm.selectedRaces || []}
-                      onChange={(ids) => updateRealm(index, 'selectedRaces', ids)}
-                    />
-                    
-                    {/* Creatures Section */}
-                    <CreaturesSelector
-                      realmIndex={index}
-                      selectedCreatures={realm.selectedCreatures || []}
-                      onChange={(ids) => updateRealm(index, 'selectedCreatures', ids)}
-                    />
-                  </div>
-
                   {/* Languages, Deities, and Factions */}
                   <div className="border-t border-white/20 pt-4 mt-4">
                     <h3 className="text-lg font-semibold text-white mb-3">Languages, Deities & Factions</h3>

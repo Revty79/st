@@ -37,14 +37,45 @@ const SectionHeader = ({ title, onSave, isSaving }: {
   </div>
 );
 
+
+interface ContinentGeography {
+  name: string;
+  character: string;
+  mountains: string[];
+  rivers: string[];
+  lakes: string[];
+  coasts: string[];
+  resources: string[];
+  hazards: string[];
+  tradePaths: string[];
+}
+
+interface GeographyFeatureOptions {
+  mountainRanges: string[];
+  lakes: string[];
+  rivers: string[];
+  tradePaths: string[];
+  otherFeatures: string[];
+}
+
+interface WorldEraContext {
+  worldName: string;
+  eraName: string;
+  continentName?: string | null;
+  regionName?: string | null;
+}
+
 interface GeographyAndClimateFormProps {
   data: GeographyEnvironmentData;
   onUpdate: (updates: Partial<GeographyEnvironmentData>) => void;
   onManualSave?: () => void;
   isManualSaving?: boolean;
+  continentGeography?: ContinentGeography; // Resolved continent data from cascade
+  featureOptions?: GeographyFeatureOptions; // DEPRECATED: Features from World/Era to adopt
+  context?: WorldEraContext; // For display purposes
 }
 
-export default function GeographyAndClimateForm({ data, onUpdate, onManualSave, isManualSaving }: GeographyAndClimateFormProps) {
+export default function GeographyAndClimateForm({ data, onUpdate, onManualSave, isManualSaving, continentGeography, featureOptions, context }: GeographyAndClimateFormProps) {
   const handleAddFeature = () => {
     if (data.signatureFeatures.length < 5) {
       onUpdate({ signatureFeatures: [...data.signatureFeatures, ""] });
@@ -61,6 +92,62 @@ export default function GeographyAndClimateForm({ data, onUpdate, onManualSave, 
     const newFeatures = data.signatureFeatures.filter((_: string, i: number) => i !== index);
     onUpdate({ signatureFeatures: newFeatures });
   };
+
+  // Build dropdown options from resolved Continent geography (preferred) or fallback to featureOptions
+  const buildFeatureOptions = () => {
+    const options: Array<{ value: string; label: string; category: string }> = [];
+    
+    // Use continent geography if available (cascade system)
+    if (continentGeography) {
+      continentGeography.mountains.forEach(m => 
+        options.push({ value: m, label: m, category: '🏔️ Mountain' })
+      );
+      continentGeography.lakes.forEach(l => 
+        options.push({ value: l, label: l, category: '🌊 Lake' })
+      );
+      continentGeography.rivers.forEach(r => 
+        options.push({ value: r, label: r, category: '〰️ River' })
+      );
+      continentGeography.tradePaths.forEach(t => 
+        options.push({ value: t, label: t, category: '🛤️ Trade Path' })
+      );
+      continentGeography.coasts.forEach(c =>
+        options.push({ value: c, label: c, category: '🏖️ Coast' })
+      );
+      return options;
+    }
+    
+    // Fallback to old featureOptions (DEPRECATED)
+    if (featureOptions?.mountainRanges) {
+      featureOptions.mountainRanges.forEach(m => 
+        options.push({ value: m, label: m, category: '🏔️ Mountain' })
+      );
+    }
+    if (featureOptions?.lakes) {
+      featureOptions.lakes.forEach(l => 
+        options.push({ value: l, label: l, category: '🌊 Lake' })
+      );
+    }
+    if (featureOptions?.rivers) {
+      featureOptions.rivers.forEach(r => 
+        options.push({ value: r, label: r, category: '〰️ River' })
+      );
+    }
+    if (featureOptions?.tradePaths) {
+      featureOptions.tradePaths.forEach(t => 
+        options.push({ value: t, label: t, category: '🛤️ Trade Path' })
+      );
+    }
+    if (featureOptions?.otherFeatures) {
+      featureOptions.otherFeatures.forEach(o => 
+        options.push({ value: o, label: o, category: '📍 Other' })
+      );
+    }
+    
+    return options;
+  };
+
+  const availableFeatures = buildFeatureOptions();
 
   const handleAddTacticsBullet = () => {
     if (data.travelTacticsBullets.length < 7) {
@@ -106,9 +193,109 @@ export default function GeographyAndClimateForm({ data, onUpdate, onManualSave, 
 
       <div className="text-sm text-amber-400 text-center mb-4">MVS Required Section</div>
 
+      {/* Cascade Context Panel */}
+      {context && (
+        <div className="bg-blue-950/30 border border-blue-500/30 rounded-lg p-4 space-y-2">
+          <div className="text-sm font-medium text-blue-300">📍 Geography Context</div>
+          <div className="text-xs text-zinc-300 space-y-1">
+            {context.continentName ? (
+              <>
+                <div>
+                  <strong>Continent:</strong> {context.continentName} {continentGeography ? `(${continentGeography.character})` : ''}
+                </div>
+                {context.regionName && (
+                  <div>
+                    <strong>Region:</strong> {context.regionName}
+                  </div>
+                )}
+                {continentGeography && (
+                  <div className="mt-2 pt-2 border-t border-blue-500/20">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>🏔️ {continentGeography.mountains.length} Mountains</div>
+                      <div>〰️ {continentGeography.rivers.length} Rivers</div>
+                      <div>🌊 {continentGeography.lakes.length} Lakes</div>
+                      <div>🏖️ {continentGeography.coasts.length} Coasts</div>
+                      <div>🛤️ {continentGeography.tradePaths.length} Trade Routes</div>
+                      <div>💎 {continentGeography.resources.length} Resources</div>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-amber-400">
+                ⚠️ Select a Region in Front Matter to inherit continent geography
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="text-sm text-zinc-300 bg-blue-950/30 border border-blue-500/30 rounded-lg p-4">
         <strong>Fill Goal:</strong> Create geographic elements that support gameplay and provide tactical variety.
       </div>
+
+      {/* Quick-Adopt Resources & Hazards from Continent */}
+      {continentGeography && (continentGeography.resources.length > 0 || continentGeography.hazards.length > 0) && (
+        <div className="border border-green-500/30 bg-green-950/20 rounded-lg p-4 space-y-3">
+          <h4 className="text-green-300 text-sm font-medium">🌍 Adopt from {continentGeography.name}</h4>
+          
+          {continentGeography.resources.length > 0 && (
+            <div>
+              <div className="text-xs text-zinc-300 mb-2">💎 Resources:</div>
+              <div className="flex flex-wrap gap-2">
+                {continentGeography.resources.map((resource, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      // Add as new resource/hazard pair (user can add hazard manually)
+                      const existingPair = data.resourcesHazards.find((p: any) => p.resource === resource);
+                      if (!existingPair) {
+                        onUpdate({ 
+                          resourcesHazards: [...data.resourcesHazards, { resource, hazard: "" }]
+                        });
+                      }
+                    }}
+                    disabled={data.resourcesHazards.some((p: any) => p.resource === resource)}
+                    className="px-2 py-1 text-xs bg-green-700 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded"
+                  >
+                    {data.resourcesHazards.some((p: any) => p.resource === resource) ? '✓ ' : '+ '}{resource}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {continentGeography.hazards.length > 0 && (
+            <div>
+              <div className="text-xs text-zinc-300 mb-2">⚠️ Hazards:</div>
+              <div className="flex flex-wrap gap-2">
+                {continentGeography.hazards.map((hazard, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      // Add as new resource/hazard pair (user can add resource manually)
+                      const existingPair = data.resourcesHazards.find((p: any) => p.hazard === hazard);
+                      if (!existingPair) {
+                        onUpdate({ 
+                          resourcesHazards: [...data.resourcesHazards, { resource: "", hazard }]
+                        });
+                      }
+                    }}
+                    disabled={data.resourcesHazards.some((p: any) => p.hazard === hazard)}
+                    className="px-2 py-1 text-xs bg-orange-700 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded"
+                  >
+                    {data.resourcesHazards.some((p: any) => p.hazard === hazard) ? '✓ ' : '+ '}{hazard}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          <div className="text-xs text-zinc-400 italic">
+            💡 Click to adopt into your Resources & Hazards section below
+          </div>
+        </div>
+      )}
 
       {/* Travel & Tactics Bullets */}
       <div className="space-y-4">
@@ -200,25 +387,52 @@ export default function GeographyAndClimateForm({ data, onUpdate, onManualSave, 
         </div>
       </div>
 
-      {/* Signature Features */}
+      {/* Signature Features (adopt from world/era) */}
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-white">Signature Features (3-5)</h3>
         <div className="text-sm text-zinc-400">
-          Distinctive landmarks that define this region
+          Select features from your World/Era geography, or add custom ones.
         </div>
+
+        {/* Available features from World/Era */}
+        {availableFeatures.length > 0 && (
+          <div className="border border-blue-500/30 bg-blue-950/20 rounded-lg p-3 mb-3">
+            <h5 className="text-blue-300 text-sm font-medium mb-2">
+              📍 Available from {context?.worldName || 'World'}/{context?.eraName || 'Era'}:
+            </h5>
+            <div className="flex flex-wrap gap-2">
+              {availableFeatures.map((feature, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    if (!data.signatureFeatures.includes(feature.value) && data.signatureFeatures.length < 5) {
+                      handleUpdateFeature(data.signatureFeatures.length, feature.value);
+                    }
+                  }}
+                  disabled={data.signatureFeatures.includes(feature.value) || data.signatureFeatures.length >= 5}
+                  className="px-2 py-1 text-xs bg-blue-700 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded border border-blue-400/30"
+                  title={feature.category}
+                >
+                  {feature.category.split(' ')[0]} {feature.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         
         <div className="space-y-3">
           {data.signatureFeatures.map((feature: string, index: number) => (
-            <div key={index} className="flex gap-2">
-              <FormField
-                label={`Feature ${index + 1}`}
-                value={feature}
-                onCommit={(value: string) => handleUpdateFeature(index, value)}
-                placeholder="The Sunken Plaza - floods at high tide, reveals hidden passages at low tide"
-                maxLength={120}
-                className="flex-1"
-                helperText="What makes this feature memorable and useful?"
-              />
+            <div key={index} className="flex gap-2 items-center">
+              <div className="flex-1">
+                <FormField
+                  label={`Feature ${index + 1}`}
+                  value={feature}
+                  onCommit={(value: string) => handleUpdateFeature(index, value)}
+                  placeholder="The Glass Bridge, Singing Cliffs, etc."
+                  maxLength={80}
+                  helperText="What makes this memorable and useful in gameplay?"
+                />
+              </div>
               <button
                 onClick={() => handleRemoveFeature(index)}
                 className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded mt-6"
@@ -227,7 +441,6 @@ export default function GeographyAndClimateForm({ data, onUpdate, onManualSave, 
               </button>
             </div>
           ))}
-          
           {data.signatureFeatures.length < 5 && (
             <button
               onClick={handleAddFeature}
@@ -237,7 +450,6 @@ export default function GeographyAndClimateForm({ data, onUpdate, onManualSave, 
             </button>
           )}
         </div>
-
         <div className="space-y-2 text-xs text-zinc-400">
           <div><strong>Examples:</strong></div>
           <div>• "The Glass Bridge - beautiful but shatters under heavy weight"</div>

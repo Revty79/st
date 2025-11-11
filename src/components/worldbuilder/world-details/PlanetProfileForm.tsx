@@ -146,13 +146,13 @@ const MultiSelect = ({ values, onCommit, options, placeholder }: {
         {values.map((value) => (
           <span
             key={value}
-            className="inline-flex items-center px-2 py-1 rounded-full text-sm bg-blue-100 text-blue-800"
+            className="inline-flex items-center px-2 py-1 rounded-full text-sm bg-zinc-800 text-white border border-white/20"
           >
             {value}
             <button
               type="button"
               onClick={() => removeValue(value)}
-              className="ml-1 text-blue-600 hover:text-blue-800"
+              className="ml-1 text-white hover:text-amber-400"
             >
               ×
             </button>
@@ -164,9 +164,9 @@ const MultiSelect = ({ values, onCommit, options, placeholder }: {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-left flex justify-between items-center"
+        className="w-full px-3 py-2 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 bg-zinc-800 text-left flex justify-between items-center text-white"
       >
-        <span className="text-white">
+        <span>
           {values.length === 0 ? placeholder : `${values.length} selected`}
         </span>
         <span>{isOpen ? "▲" : "▼"}</span>
@@ -174,39 +174,38 @@ const MultiSelect = ({ values, onCommit, options, placeholder }: {
 
       {/* Options dropdown */}
       {isOpen && (
-        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
+        <div className="absolute z-10 w-full mt-1 bg-zinc-800 border border-white/20 rounded-lg shadow-lg">
           <div className="max-h-48 overflow-y-auto">
             {options.map((option) => (
               <label
                 key={option.value}
-                className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                className="flex items-center px-3 py-2 hover:bg-zinc-700 cursor-pointer text-white"
               >
                 <input
                   type="checkbox"
                   checked={values.includes(option.value)}
                   onChange={() => toggleOption(option.value)}
-                  className="mr-2"
+                  className="mr-2 accent-amber-500"
                 />
                 {option.label}
               </label>
             ))}
           </div>
-          
           {/* Add other option */}
-          <div className="border-t border-white/20 p-2">
+          <div className="border-t border-white/20 p-2 bg-zinc-900">
             <div className="flex gap-2">
               <input
                 type="text"
                 value={otherValue}
                 onChange={(e) => setOtherValue(e.target.value)}
                 placeholder="Add custom climate..."
-                className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm"
+                className="flex-1 px-2 py-1 border border-white/20 rounded bg-zinc-800 text-white text-sm placeholder:text-white"
               />
               <button
                 type="button"
                 onClick={addOther}
                 disabled={!otherValue.trim()}
-                className="px-2 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 disabled:opacity-50"
+                className="px-2 py-1 bg-amber-500 text-black text-sm rounded hover:bg-amber-400 disabled:opacity-50"
               >
                 Add
               </button>

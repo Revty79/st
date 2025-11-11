@@ -229,6 +229,7 @@ export default function MagicModelForm({ data, onUpdate }: MagicModelFormProps) 
   ];
 
   const rarityOptions = [
+    { value: "Unusable", label: "Unusable / No Magic" },
     { value: "Commonplace", label: "Commonplace" },
     { value: "Uncommon", label: "Uncommon" },
     { value: "Rare", label: "Rare" },

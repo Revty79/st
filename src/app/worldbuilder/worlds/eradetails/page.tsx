@@ -107,6 +107,7 @@ function EraDetailsContent() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [currentSection, setCurrentSection] = useState("basic");
   const [worldRealms, setWorldRealms] = useState<Array<{ id: string; name: string }>>([]);
+  const [worldContinents, setWorldContinents] = useState<Array<{ name: string; character: string }>>([]);
   
   const [eraData, setEraData] = useState<EraDetailsData>({
     basicInfo: {
@@ -150,7 +151,7 @@ function EraDetailsContent() {
     settingStubs: []
   });
 
-  // Load mock world realms (TODO: wire to API later)
+  // Load mock world realms and continents (TODO: wire to API later)
   useEffect(() => {
     if (!worldId) return;
     // Mock realms for now
@@ -159,6 +160,13 @@ function EraDetailsContent() {
       { id: "2", name: "Feywild" },
       { id: "3", name: "Shadowfell" },
       { id: "4", name: "Astral Plane" }
+    ]);
+    // Mock continents from World's Planet Profile
+    setWorldContinents([
+      { name: "Aurelia", character: "Temperate forests and plains" },
+      { name: "Valtor", character: "Mountain ranges and valleys" },
+      { name: "Zenithia", character: "Tropical jungles and islands" },
+      { name: "Borealis", character: "Frozen tundra and ice caps" }
     ]);
   }, [worldId]);
 
@@ -263,6 +271,7 @@ function EraDetailsContent() {
           data={eraData}
           onUpdate={saveEraData}
           worldRealms={worldRealms}
+          worldContinents={worldContinents}
           currentSection={currentSection}
           onManualSave={manualSave}
           isManualSaving={manualSaving}
